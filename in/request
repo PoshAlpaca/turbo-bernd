@@ -1,0 +1,6 @@
+GET /hello.txt HTTP/1.1\r
+User-Agent: curl/7.16.3 libcurl/7.16.3 OpenSSL/0.9.7l zlib/1.2.3\r
+Host: www.example.com\r
+Accept-Language: en, mi\r
+\r
+This is the body \r\nof the request.\r
