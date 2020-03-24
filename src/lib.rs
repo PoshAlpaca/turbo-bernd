@@ -79,6 +79,5 @@ fn handle_client(mut stream: &TcpStream) -> io::Result<String> {
 }
 
 fn respond_to_client(mut stream: &TcpStream, response: &http::Response) {
-
-    stream.write(format!("{}", response).as_bytes());
+    let _ = stream.write(format!("{}", response).as_bytes());
 }
