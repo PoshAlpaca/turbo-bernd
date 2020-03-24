@@ -46,12 +46,14 @@ pub mod response {
         RetryAfter,
         Vary,
         Warning,
+        Custom(String, String),
     }
 
     impl fmt::Display for Header {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             let header = match self {
-                Self::Age(s) => ("Age", s),
+                Self::Age(s) => ("Age".to_string(), s),
+                Self::Custom(k, v) => (k.clone(), v),
                 _ => panic!("this header does not support formatting"),
             };
 
