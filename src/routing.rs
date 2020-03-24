@@ -1,7 +1,7 @@
 use crate::http;
 use std::collections::HashMap;
 
-type CallbackFunction = fn(http::Request) -> http::Response;
+type CallbackFunction = fn(&http::Request) -> http::Response;
 
 pub struct Router {
     routes: HashMap<http::Uri, HashMap<http::Method, CallbackFunction>>,
@@ -24,7 +24,7 @@ impl Router {
         route.insert(method, f);
     }
 
-    pub fn dispatch(&self, req: http::Request) -> Result<http::Response, &str> {
+    pub fn dispatch(&self, req: &http::Request) -> Result<http::Response, &str> {
         match self.routes.get(&req.uri) {
             Some(route) => match route.get(&req.method) {
                 Some(f) => Ok(f(req)),

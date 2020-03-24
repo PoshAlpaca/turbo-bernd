@@ -6,8 +6,10 @@ use std::str;
 
 pub mod http;
 pub mod routing;
+pub mod middleware;
 
 use routing::Router;
+use middleware::Middleware;
 
 pub struct Config {
     pub port: String,
@@ -27,14 +29,19 @@ impl Config {
 
 // Box<dyn Error> is a pointer to any type that implements Error
 // ? unwraps a Result to the value in Ok, if it's an Err then the entire func returns an Err
-pub fn run(config: Config, router: Router) -> Result<(), Box<dyn Error>> {
+pub fn run(config: Config, router: Router, middleware: Box<dyn Middleware>) -> Result<(), Box<dyn Error>> {
     let address = format!("127.0.0.1:{}", config.port);
     let listener = TcpListener::bind(address)?;
 
     for stream in listener.incoming() {
         match stream {
             Ok(stream) => {
-                let response = router.dispatch(http::Request::parse(&handle_client(&stream)?)?)?;
+                let request = http::Request::parse(&handle_client(&stream)?)?;
+                let response = match middleware.answer(&request) {
+                    Ok(response) => response,
+                    Err(_) => router.dispatch(&request)?,
+                };
+
                 respond_to_client(&stream, &response);
                 println!("{:?}", &response);
             }
