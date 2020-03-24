@@ -102,12 +102,14 @@ impl fmt::Display for Version {
 #[derive(Debug, PartialEq)]
 pub enum Status {
     Ok,
+    NotFound,
 }
 
 impl fmt::Display for Status {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let status = match self {
             Self::Ok => "200 OK",
+            Self::NotFound => "404 Not Found",
         };
 
         write!(f, "{}", status)
