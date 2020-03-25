@@ -46,12 +46,14 @@ pub mod response {
         RetryAfter,
         Vary,
         Warning,
+        Custom(String, String),
     }
 
     impl fmt::Display for Header {
         fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
             let header = match self {
-                Self::Age(s) => ("Age", s),
+                Self::Age(s) => ("Age".to_string(), s),
+                Self::Custom(k, v) => (k.clone(), v),
                 _ => panic!("this header does not support formatting"),
             };
 
@@ -102,12 +104,14 @@ impl fmt::Display for Version {
 #[derive(Debug, PartialEq)]
 pub enum Status {
     Ok,
+    NotFound,
 }
 
 impl fmt::Display for Status {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let status = match self {
             Self::Ok => "200 OK",
+            Self::NotFound => "404 Not Found",
         };
 
         write!(f, "{}", status)
@@ -176,7 +180,11 @@ pub struct Response {
 
 impl fmt::Display for Response {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}\r\n{}\r\n{}", self.version, self.status, self.headers, self.body)
+        write!(
+            f,
+            "{} {}\r\n{}\r\n{}",
+            self.version, self.status, self.headers, self.body
+        )
     }
 }
 
