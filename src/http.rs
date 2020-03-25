@@ -180,7 +180,11 @@ pub struct Response {
 
 impl fmt::Display for Response {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{} {}\r\n{}\r\n{}", self.version, self.status, self.headers, self.body)
+        write!(
+            f,
+            "{} {}\r\n{}\r\n{}",
+            self.version, self.status, self.headers, self.body
+        )
     }
 }
 

@@ -5,11 +5,11 @@ use std::net::{TcpListener, TcpStream};
 use std::str;
 
 pub mod http;
-pub mod routing;
 pub mod middleware;
+pub mod routing;
 
-use routing::Router;
 use middleware::Middleware;
+use routing::Router;
 
 pub struct Config {
     pub port: String,
@@ -29,7 +29,11 @@ impl Config {
 
 // Box<dyn Error> is a pointer to any type that implements Error
 // ? unwraps a Result to the value in Ok, if it's an Err then the entire func returns an Err
-pub fn run(config: Config, router: Router, middleware: Box<dyn Middleware>) -> Result<(), Box<dyn Error>> {
+pub fn run(
+    config: Config,
+    router: Router,
+    middleware: Box<dyn Middleware>,
+) -> Result<(), Box<dyn Error>> {
     let address = format!("127.0.0.1:{}", config.port);
     let listener = TcpListener::bind(address)?;
 
