@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::fmt;
 
 pub mod request {
@@ -125,6 +126,8 @@ impl fmt::Display for Status {
         write!(f, "{}", status)
     }
 }
+
+impl Error for Status {}
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub enum Method {

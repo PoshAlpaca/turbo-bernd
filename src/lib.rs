@@ -38,26 +38,41 @@ pub fn run(
     let listener = TcpListener::bind(address)?;
 
     for stream in listener.incoming() {
-        match stream {
-            Ok(stream) => {
-                let request = http::Request::parse(&handle_client(&stream)?)?;
-                let response = match middleware.answer(&request) {
-                    Ok(response) => response,
-                    Err(_) => router.dispatch(&request)?,
-                };
+        let stream = stream?;
 
-                respond_to_client(&stream, &response);
-                println!("{:?}", &response);
-            }
-            Err(e) => {
-                println!("{}", e);
-            }
-        }
+        let response = match create_response(handle_client(&stream)?, &middleware, &router) {
+            Ok(r) => r,
+            Err(e) => http::Response {
+                version: http::Version::OneDotOne,
+                status: e,
+                headers: http::Headers {
+                    headers: Vec::new(),
+                },
+                body: "".to_string(),
+            },
+        };
+
+        respond_to_client(&stream, &response);
+        println!("{:?}", &response);
     }
 
     drop(listener);
 
     Ok(())
+}
+
+fn create_response(
+    s: String,
+    middleware: &Box<dyn Middleware>,
+    router: &Router,
+) -> Result<http::Response, http::Status> {
+    let request = http::Request::parse(&s).or(Err(http::Status::BadRequest))?;
+
+    let response = middleware
+        .answer(&request)
+        .or_else(|_| router.dispatch(&request));
+
+    response
 }
 
 // "http://www.example.com/hello.txt":
