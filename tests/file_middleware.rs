@@ -73,6 +73,6 @@ fn answer_returns_404() {
     let response_file = file_middleware.answer(&dummy_request_file);
     let response_dir = file_middleware.answer(&dummy_request_dir);
 
-    assert_eq!(response_file, Err("404"));
-    assert_eq!(response_dir, Err("404"));
+    assert_eq!(response_file, Err(http::Status::NotFound));
+    assert_eq!(response_dir, Err(http::Status::NotFound));
 }

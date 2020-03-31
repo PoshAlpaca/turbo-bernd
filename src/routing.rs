@@ -24,13 +24,13 @@ impl Router {
         route.insert(method, f);
     }
 
-    pub fn dispatch(&self, req: &http::Request) -> Result<http::Response, &str> {
+    pub fn dispatch(&self, req: &http::Request) -> Result<http::Response, http::Status> {
         match self.routes.get(&req.uri) {
             Some(route) => match route.get(&req.method) {
                 Some(f) => Ok(f(req)),
-                None => Err("405"),
+                None => Err(http::Status::MethodNotAllowed),
             },
-            None => Err("404"),
+            None => Err(http::Status::NotFound),
         }
     }
 }
@@ -94,7 +94,7 @@ mod tests {
         let dummy_request = create_dummy_request();
         let result = router.dispatch(&dummy_request);
 
-        assert_eq!(result, Err("404"));
+        assert_eq!(result, Err(http::Status::NotFound));
     }
 
     #[test]
@@ -105,6 +105,6 @@ mod tests {
         let dummy_request = create_dummy_request();
         let result = router.dispatch(&dummy_request);
 
-        assert_eq!(result, Err("405"));
+        assert_eq!(result, Err(http::Status::MethodNotAllowed));
     }
 }

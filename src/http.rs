@@ -1,3 +1,4 @@
+use std::error::Error;
 use std::fmt;
 
 pub mod request {
@@ -104,19 +105,29 @@ impl fmt::Display for Version {
 #[derive(Debug, PartialEq)]
 pub enum Status {
     Ok,
+    BadRequest,
+    Unauthorized,
+    Forbidden,
     NotFound,
+    MethodNotAllowed,
 }
 
 impl fmt::Display for Status {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let status = match self {
             Self::Ok => "200 OK",
+            Self::BadRequest => "400 Bad Request",
+            Self::Unauthorized => "401 Unauthorized",
+            Self::Forbidden => "402 Forbidden",
             Self::NotFound => "404 Not Found",
+            Self::MethodNotAllowed => "405 Method Not Allowed",
         };
 
         write!(f, "{}", status)
     }
 }
+
+impl Error for Status {}
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub enum Method {

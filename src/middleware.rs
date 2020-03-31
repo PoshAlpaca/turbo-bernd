@@ -5,7 +5,7 @@ use std::io::prelude::*;
 use std::path::Path;
 
 pub trait Middleware {
-    fn answer(&self, request: &http::Request) -> Result<http::Response, &'static str>;
+    fn answer(&self, request: &http::Request) -> Result<http::Response, http::Status>;
 }
 
 pub struct FileMiddleware<'a> {
@@ -13,7 +13,7 @@ pub struct FileMiddleware<'a> {
 }
 
 impl<'a> Middleware for FileMiddleware<'a> {
-    fn answer(&self, request: &http::Request) -> Result<http::Response, &'static str> {
+    fn answer(&self, request: &http::Request) -> Result<http::Response, http::Status> {
         let mut buffer = String::new();
 
         let file_path = format!("{}{}", self.file_directory, request.uri.path);
@@ -24,19 +24,21 @@ impl<'a> Middleware for FileMiddleware<'a> {
             buffer.push_str("<html>");
             buffer.push_str("<body>");
 
-            for entry in path.read_dir().expect("problem reading dir") {
-                let entry = entry.expect("problem reading dir entry");
+            // if err: problem reading dir
+            let entries = path.read_dir().or(Err(http::Status::NotFound))?;
 
+            for entry in entries {
+                // if err: problem reading dir entry
+                let entry = entry.or(Err(http::Status::NotFound))?;
+
+                // if err: entry not a valid string
                 let mut entry_name = entry
                     .file_name()
                     .into_string()
-                    .expect("entry not valid string");
+                    .or(Err(http::Status::NotFound))?;
 
-                if entry
-                    .metadata()
-                    .expect("problem with entry metadata")
-                    .is_dir()
-                {
+                // if err: problem with entry metadata
+                if entry.metadata().or(Err(http::Status::NotFound))?.is_dir() {
                     entry_name.push('/');
                 }
 
@@ -54,7 +56,7 @@ impl<'a> Middleware for FileMiddleware<'a> {
         } else {
             let _ = match File::open(file_path) {
                 Ok(mut f) => f.read_to_string(&mut buffer),
-                Err(_) => return Err("404"),
+                Err(_) => return Err(http::Status::NotFound),
             };
         }
 
