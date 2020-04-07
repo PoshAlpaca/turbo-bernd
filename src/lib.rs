@@ -8,7 +8,7 @@ pub mod http;
 pub mod middleware;
 pub mod routing;
 
-use middleware::Middleware;
+use middleware::{FileMiddleware, Middleware};
 use routing::Router;
 
 pub struct Config {
@@ -29,13 +29,12 @@ impl Config {
 
 // Box<dyn Error> is a pointer to any type that implements Error
 // ? unwraps a Result to the value in Ok, if it's an Err then the entire func returns an Err
-pub fn run(
-    config: Config,
-    router: Router,
-    middleware: Box<dyn Middleware>,
-) -> Result<(), Box<dyn Error>> {
+pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let address = format!("127.0.0.1:{}", config.port);
     let listener = TcpListener::bind(address)?;
+
+    let router = setup_router();
+    let middleware = setup_middleware();
 
     for stream in listener.incoming() {
         let stream = stream?;
@@ -59,6 +58,27 @@ pub fn run(
     drop(listener);
 
     Ok(())
+}
+
+fn setup_router() -> Router {
+    let mut router = Router::new();
+
+    router.register("/hello", http::Method::Get, |_| http::Response {
+        version: http::Version::OneDotOne,
+        status: http::Status::Ok,
+        headers: http::Headers {
+            headers: Vec::new(),
+        },
+        body: "Hello, world!".to_string(),
+    });
+
+    router
+}
+
+fn setup_middleware() -> Box<dyn Middleware> {
+    Box::new(FileMiddleware {
+        file_directory: "public",
+    })
 }
 
 fn create_response(
