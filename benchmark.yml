@@ -1,0 +1,23 @@
+---
+
+threads: 4
+base: 'http://localhost:5000'
+iterations: 3
+rampup: 2
+
+plan:
+  - name: Hello world
+    request:
+      url: /hello
+
+  - name: Big test
+    request:
+      url: /big_test.html
+
+  - name: Very big test
+    request:
+      url: /very_big_test.html
+
+  - name: Random directory
+    request:
+      url: /random_dir
