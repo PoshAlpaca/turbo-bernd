@@ -1,3 +1,4 @@
+use log::{error, info, trace};
 use std::error::Error;
 use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
@@ -30,7 +31,14 @@ impl Config {
 // Box<dyn Error> is a pointer to any type that implements Error
 // ? unwraps a Result to the value in Ok, if it's an Err then the entire func returns an Err
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
+    info!(
+        "Starting {} {}",
+        env!("CARGO_PKG_NAME"),
+        env!("CARGO_PKG_VERSION")
+    );
     let address = format!("127.0.0.1:{}", config.port);
+
+    info!("Listening at: {}", address);
     let listener = TcpListener::bind(address).unwrap();
 
     for stream in listener.incoming() {
@@ -85,26 +93,35 @@ fn handle_client(mut stream: TcpStream) {
     let mut buffer = [0; 1024];
     let _ = stream.read(&mut buffer[..]).unwrap();
 
-    let mystring = str::from_utf8(&buffer).unwrap();
-    println!("{}", mystring);
+    let req_str = str::from_utf8(&buffer).unwrap();
 
-    let x = String::from(mystring);
+    let request = String::from(req_str);
+
+    // TODO
+    let request_copy = request.clone();
+    let first_line = request_copy.splitn(2, "\r\n").next().unwrap();
 
     let router = setup_router();
     let middleware = setup_middleware();
 
-    let response = match create_response(x, &middleware, &router) {
-        Ok(r) => r,
-        Err(e) => http::Response {
-            version: http::Version::OneDotOne,
-            status: e,
-            headers: http::Headers {
-                headers: Vec::new(),
-            },
-            body: "".to_string(),
-        },
+    let response = match create_response(request, &middleware, &router) {
+        Ok(r) => {
+            info!("{} => {}", first_line, r.status);
+            r
+        }
+        Err(e) => {
+            error!("{} => {}", first_line, e);
+
+            http::Response {
+                version: http::Version::OneDotOne,
+                status: e,
+                headers: http::Headers {
+                    headers: Vec::new(),
+                },
+                body: "".to_string(),
+            }
+        }
     };
 
     let _ = stream.write(format!("{}", response).as_bytes());
-    println!("{:?}", &response);
 }

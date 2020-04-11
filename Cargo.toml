@@ -8,6 +8,8 @@ edition = "2018"
 
 [dependencies]
 afl = "0.5.2"
+log = "0.4.8"
+pretty_env_logger = "0.4"
 
 [dev-dependencies]
 drill = "0.5.0"

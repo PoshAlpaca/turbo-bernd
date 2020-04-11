@@ -1,8 +1,11 @@
+use pretty_env_logger;
 use std::env;
 use std::process;
 use turbo_bernd::Config;
 
 fn main() {
+    pretty_env_logger::init_timed();
+
     let args: Vec<String> = env::args().collect();
 
     let config = Config::new(&args).unwrap_or_else(|err| {
