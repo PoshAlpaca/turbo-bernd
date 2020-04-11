@@ -8,3 +8,6 @@ edition = "2018"
 
 [dependencies]
 afl = "0.5.2"
+
+[dev-dependencies]
+drill = "0.5.0"

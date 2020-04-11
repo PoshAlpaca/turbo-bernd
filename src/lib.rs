@@ -1,8 +1,8 @@
 use std::error::Error;
-use std::io;
 use std::io::prelude::*;
 use std::net::{TcpListener, TcpStream};
 use std::str;
+use std::thread;
 
 pub mod http;
 pub mod middleware;
@@ -31,31 +31,17 @@ impl Config {
 // ? unwraps a Result to the value in Ok, if it's an Err then the entire func returns an Err
 pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     let address = format!("127.0.0.1:{}", config.port);
-    let listener = TcpListener::bind(address)?;
-
-    let router = setup_router();
-    let middleware = setup_middleware();
+    let listener = TcpListener::bind(address).unwrap();
 
     for stream in listener.incoming() {
-        let stream = stream?;
+        let stream = stream.unwrap();
 
-        let response = match create_response(handle_client(&stream)?, &middleware, &router) {
-            Ok(r) => r,
-            Err(e) => http::Response {
-                version: http::Version::OneDotOne,
-                status: e,
-                headers: http::Headers {
-                    headers: Vec::new(),
-                },
-                body: "".to_string(),
-            },
-        };
-
-        respond_to_client(&stream, &response);
-        println!("{:?}", &response);
+        // vulnerable to DoS attack (one thread per request -> 1000 threads for 1000 requests)
+        // different models: thread pool, fork/join model, single-threaded async I/O model
+        thread::spawn(move || {
+            handle_client(stream);
+        });
     }
-
-    drop(listener);
 
     Ok(())
 }
@@ -95,35 +81,30 @@ fn create_response(
     response
 }
 
-// "http://www.example.com/hello.txt":
-
-//      GET /hello.txt HTTP/1.1
-//      User-Agent: curl/7.16.3 libcurl/7.16.3 OpenSSL/0.9.7l zlib/1.2.3
-//      Host: www.example.com
-//      Accept-Language: en, mi
-
-//      HTTP/1.1 200 OK
-//      Date: Mon, 27 Jul 2009 12:28:53 GMT
-//      Server: Apache
-//      Last-Modified: Wed, 22 Jul 2009 19:15:56 GMT
-//      ETag: "34aa387-d-1568eb00"
-//      Accept-Ranges: bytes
-//      Content-Length: 51
-//      Vary: Accept-Encoding
-//      Content-Type: text/plain
-
-//      Hello World! My payload includes a trailing CRLF.
-
-fn handle_client(mut stream: &TcpStream) -> io::Result<String> {
+fn handle_client(mut stream: TcpStream) {
     let mut buffer = [0; 1024];
-    let _ = stream.read(&mut buffer[..])?;
+    let _ = stream.read(&mut buffer[..]).unwrap();
 
     let mystring = str::from_utf8(&buffer).unwrap();
     println!("{}", mystring);
 
-    Ok(String::from(mystring))
-}
+    let x = String::from(mystring);
 
-fn respond_to_client(mut stream: &TcpStream, response: &http::Response) {
+    let router = setup_router();
+    let middleware = setup_middleware();
+
+    let response = match create_response(x, &middleware, &router) {
+        Ok(r) => r,
+        Err(e) => http::Response {
+            version: http::Version::OneDotOne,
+            status: e,
+            headers: http::Headers {
+                headers: Vec::new(),
+            },
+            body: "".to_string(),
+        },
+    };
+
     let _ = stream.write(format!("{}", response).as_bytes());
+    println!("{:?}", &response);
 }
