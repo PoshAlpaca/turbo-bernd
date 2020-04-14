@@ -1,9 +1,10 @@
-use log::{error, info, trace};
-use std::error::Error;
-use std::io::prelude::*;
-use std::net::{TcpListener, TcpStream};
-use std::str;
-use std::thread;
+use log::{error, info};
+use std::{
+    error::Error,
+    io::prelude::*,
+    net::{TcpListener, TcpStream},
+    str,
+};
 
 pub mod http;
 pub mod middleware;

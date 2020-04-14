@@ -1,6 +1,5 @@
 use pretty_env_logger;
-use std::env;
-use std::process;
+use std::{env, process};
 use turbo_bernd::Config;
 
 fn main() {
