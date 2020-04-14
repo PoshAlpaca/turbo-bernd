@@ -42,8 +42,6 @@ impl<'a> Middleware for FileMiddleware<'a> {
                     entry_name.push('/');
                 }
 
-                println!("{}", entry_name);
-
                 buffer.push_str("<p>");
                 buffer.push_str(&format!("<a href=\"{}{}\">", request.uri.path, entry_name));
                 buffer.push_str(&entry_name);
