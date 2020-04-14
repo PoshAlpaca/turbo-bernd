@@ -1,8 +1,6 @@
 use crate::http;
 
-use std::fs::File;
-use std::io::prelude::*;
-use std::path::Path;
+use std::{fs::File, io::prelude::*, path::Path};
 
 pub trait Middleware {
     fn answer(&self, request: &http::Request) -> Result<http::Response, http::Status>;
