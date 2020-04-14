@@ -1,6 +1,6 @@
 use log::{error, info};
 use std::{
-    error::Error,
+    env,
     io::prelude::*,
     net::{TcpListener, TcpStream},
     str,
@@ -15,12 +15,12 @@ use middleware::{FileMiddleware, Middleware};
 use routing::Router;
 use thread_pool::ThreadPool;
 
-pub struct Config {
-    pub port: String,
+struct Config {
+    port: String,
 }
 
 impl Config {
-    pub fn new(args: &[String]) -> Result<Config, &str> {
+    fn new(args: &[String]) -> Result<Config, &str> {
         if args.len() < 2 {
             return Err("too few arguments, please include port");
         }
@@ -33,7 +33,11 @@ impl Config {
 
 // Box<dyn Error> is a pointer to any type that implements Error
 // ? unwraps a Result to the value in Ok, if it's an Err then the entire func returns an Err
-pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
+pub fn run() {
+    let args: Vec<String> = env::args().collect();
+
+    let config = Config::new(&args).unwrap();
+
     info!(
         "Starting {} {}",
         env!("CARGO_PKG_NAME"),
@@ -53,8 +57,6 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
             handle_client(stream);
         });
     }
-
-    Ok(())
 }
 
 fn setup_router() -> Router {
