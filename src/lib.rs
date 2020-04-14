@@ -8,9 +8,11 @@ use std::thread;
 pub mod http;
 pub mod middleware;
 pub mod routing;
+mod thread_pool;
 
 use middleware::{FileMiddleware, Middleware};
 use routing::Router;
+use thread_pool::ThreadPool;
 
 pub struct Config {
     pub port: String,
@@ -41,12 +43,12 @@ pub fn run(config: Config) -> Result<(), Box<dyn Error>> {
     info!("Listening at: {}", address);
     let listener = TcpListener::bind(address).unwrap();
 
+    let thread_pool = ThreadPool::new(4);
+
     for stream in listener.incoming() {
         let stream = stream.unwrap();
 
-        // vulnerable to DoS attack (one thread per request -> 1000 threads for 1000 requests)
-        // different models: thread pool, fork/join model, single-threaded async I/O model
-        thread::spawn(move || {
+        thread_pool.execute(move || {
             handle_client(stream);
         });
     }
