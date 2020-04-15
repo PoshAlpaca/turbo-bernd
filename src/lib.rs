@@ -31,47 +31,41 @@ impl Config {
     }
 }
 
-// Box<dyn Error> is a pointer to any type that implements Error
-// ? unwraps a Result to the value in Ok, if it's an Err then the entire func returns an Err
-pub fn run() {
-    let args: Vec<String> = env::args().collect();
-
-    let config = Config::new(&args).unwrap();
-
-    info!(
-        "Starting {} {}",
-        env!("CARGO_PKG_NAME"),
-        env!("CARGO_PKG_VERSION")
-    );
-    let address = format!("127.0.0.1:{}", config.port);
-
-    info!("Listening at: {}", address);
-    let listener = TcpListener::bind(address).unwrap();
-
-    let thread_pool = ThreadPool::new(4);
-
-    for stream in listener.incoming() {
-        let stream = stream.unwrap();
-
-        thread_pool.execute(move || {
-            handle_client(stream);
-        });
-    }
+pub struct Application {
+    config: Config,
+    router: Router,
 }
 
-fn setup_router() -> Router {
-    let mut router = Router::new();
+impl Application {
+    pub fn new(router: Router) -> Application {
+        let args: Vec<String> = env::args().collect();
+        let config = Config::new(&args).unwrap();
 
-    router.register("/hello", http::Method::Get, |_| http::Response {
-        version: http::Version::OneDotOne,
-        status: http::Status::Ok,
-        headers: http::Headers {
-            headers: Vec::new(),
-        },
-        body: "Hello, world!".to_string(),
-    });
+        Application { config, router }
+    }
 
-    router
+    pub fn run(&self) {
+        info!(
+            "Starting {} {}",
+            env!("CARGO_PKG_NAME"),
+            env!("CARGO_PKG_VERSION")
+        );
+
+        let address = format!("127.0.0.1:{}", self.config.port);
+
+        info!("Listening at: {}", address);
+        let listener = TcpListener::bind(address).unwrap();
+
+        let thread_pool = ThreadPool::new(4);
+
+        for stream in listener.incoming() {
+            let stream = stream.unwrap();
+
+            thread_pool.execute(move || {
+                handle_client(stream, &self.router);
+            });
+        }
+    }
 }
 
 fn setup_middleware() -> Box<dyn Middleware> {
@@ -94,7 +88,7 @@ fn create_response(
     response
 }
 
-fn handle_client(mut stream: TcpStream) {
+fn handle_client(mut stream: TcpStream, router: &Router) {
     let mut buffer = [0; 1024];
     let _ = stream.read(&mut buffer[..]).unwrap();
 
@@ -106,7 +100,6 @@ fn handle_client(mut stream: TcpStream) {
     let request_copy = request.clone();
     let first_line = request_copy.splitn(2, "\r\n").next().unwrap();
 
-    let router = setup_router();
     let middleware = setup_middleware();
 
     let response = match create_response(request, &middleware, &router) {
