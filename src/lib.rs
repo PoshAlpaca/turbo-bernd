@@ -1,3 +1,4 @@
+use chrono::prelude::*;
 use crossbeam::scope;
 use log::{error, info};
 use std::{
@@ -68,6 +69,7 @@ impl Application {
                 });
             })
             .unwrap();
+            // trace!("{}: Handling request", Utc::now().format("%H:%M:%S:%f"));
         }
     }
 }

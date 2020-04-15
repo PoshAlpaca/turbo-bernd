@@ -10,6 +10,7 @@ edition = "2018"
 afl = "0.5.2"
 log = "0.4.8"
 pretty_env_logger = "0.4"
+chrono = "0.4"
 crossbeam = "0.7"
 
 [dev-dependencies]
