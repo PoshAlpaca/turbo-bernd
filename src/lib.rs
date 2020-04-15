@@ -1,3 +1,4 @@
+use crossbeam::scope;
 use log::{error, info};
 use std::{
     env,
@@ -61,9 +62,12 @@ impl Application {
         for stream in listener.incoming() {
             let stream = stream.unwrap();
 
-            thread_pool.execute(move || {
-                handle_client(stream, &self.router);
-            });
+            scope(|s| {
+                s.spawn(move |_| {
+                    handle_client(stream, &self.router);
+                });
+            })
+            .unwrap();
         }
     }
 }
