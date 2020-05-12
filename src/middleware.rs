@@ -2,7 +2,7 @@ use crate::http;
 
 use std::{fs::File, io::prelude::*, path::Path};
 
-pub trait Middleware {
+pub trait Middleware: Sync {
     fn answer(&self, request: &http::Request) -> Result<http::Response, http::Status>;
 }
 
