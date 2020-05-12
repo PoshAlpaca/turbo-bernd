@@ -10,6 +10,12 @@ pub struct FileMiddleware<'a> {
     pub file_directory: &'a str,
 }
 
+impl<'a> FileMiddleware<'a> {
+    pub fn new(file_directory: &str) -> FileMiddleware {
+        FileMiddleware { file_directory }
+    }
+}
+
 impl<'a> Middleware for FileMiddleware<'a> {
     fn answer(&self, request: &http::Request) -> Result<http::Response, http::Status> {
         let mut buffer = String::new();
