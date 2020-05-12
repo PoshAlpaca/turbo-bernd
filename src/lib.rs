@@ -10,10 +10,8 @@ use std::{
 pub mod http;
 pub mod middleware;
 pub mod routing;
-mod thread_pool;
 
 use middleware::Middleware;
-use thread_pool::ThreadPool;
 
 struct Config {
     port: String,
@@ -55,8 +53,6 @@ impl Application {
 
         info!("Listening at: {}", address);
         let listener = TcpListener::bind(address).unwrap();
-
-        let thread_pool = ThreadPool::new(4);
 
         for stream in listener.incoming() {
             let stream = stream.unwrap();
