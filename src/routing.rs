@@ -1,4 +1,6 @@
 use crate::http;
+use crate::middleware;
+use middleware::Middleware;
 use std::collections::HashMap;
 
 type CallbackFunction = fn(&http::Request) -> http::Response;
@@ -32,6 +34,12 @@ impl Router {
             },
             None => Err(http::Status::NotFound),
         }
+    }
+}
+
+impl<'a> Middleware for Router {
+    fn answer(&self, request: &http::Request) -> Result<http::Response, http::Status> {
+        self.dispatch(request)
     }
 }
 
