@@ -12,8 +12,7 @@ pub mod middleware;
 pub mod routing;
 mod thread_pool;
 
-use middleware::{FileMiddleware, Middleware};
-use routing::Router;
+use middleware::Middleware;
 use thread_pool::ThreadPool;
 
 struct Config {
@@ -34,15 +33,15 @@ impl Config {
 
 pub struct Application {
     config: Config,
-    router: Router,
+    middleware: Vec<Box<dyn Middleware>>,
 }
 
 impl Application {
-    pub fn new(router: Router) -> Application {
+    pub fn new(middleware: Vec<Box<dyn Middleware>>) -> Application {
         let args: Vec<String> = env::args().collect();
         let config = Config::new(&args).unwrap();
 
-        Application { config, router }
+        Application { config, middleware }
     }
 
     pub fn run(&self) {
@@ -64,7 +63,7 @@ impl Application {
 
             scope(|s| {
                 s.spawn(move |_| {
-                    handle_client(stream, &self.router);
+                    handle_client(stream, &self.middleware);
                 });
             })
             .unwrap();
@@ -72,27 +71,31 @@ impl Application {
     }
 }
 
-fn setup_middleware() -> Box<dyn Middleware> {
-    Box::new(FileMiddleware {
-        file_directory: "public",
-    })
+fn get_response(
+    middleware: &[Box<dyn Middleware>],
+    request: &http::Request,
+) -> Result<http::Response, http::Status> {
+    for current in middleware {
+        if let Ok(res) = current.answer(&request) {
+            return Ok(res);
+        } else {
+            continue;
+        }
+    }
+
+    Err(http::Status::NotFound)
 }
 
 fn create_response(
     s: String,
-    middleware: &Box<dyn Middleware>,
-    router: &Router,
+    middleware: &[Box<dyn Middleware>],
 ) -> Result<http::Response, http::Status> {
     let request = http::Request::parse(&s).or(Err(http::Status::BadRequest))?;
 
-    let response = middleware
-        .answer(&request)
-        .or_else(|_| router.dispatch(&request));
-
-    response
+    get_response(middleware, &request)
 }
 
-fn handle_client(mut stream: TcpStream, router: &Router) {
+fn handle_client(mut stream: TcpStream, middleware: &[Box<dyn Middleware>]) {
     let mut buffer = [0; 1024];
     let _ = stream.read(&mut buffer[..]).unwrap();
 
@@ -104,13 +107,12 @@ fn handle_client(mut stream: TcpStream, router: &Router) {
     let request_copy = request.clone();
     let first_line = request_copy.splitn(2, "\r\n").next().unwrap();
 
-    let middleware = setup_middleware();
-
-    let response = match create_response(request, &middleware, &router) {
+    let response = match create_response(request, &middleware) {
         Ok(r) => {
             info!("{} => {}", first_line, r.status);
             r
         }
+        // TODO: More custom error types, which diff. cases need to be handled?
         Err(e) => {
             error!("{} => {}", first_line, e);
 
