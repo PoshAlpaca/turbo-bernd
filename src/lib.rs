@@ -11,6 +11,7 @@ pub mod http;
 pub mod middleware;
 pub mod routing;
 
+use http::{Response, Status};
 use middleware::Middleware;
 
 struct Config {
@@ -70,25 +71,32 @@ impl Application {
 fn get_response(
     middleware: &[Box<dyn Middleware>],
     request: &http::Request,
-) -> Result<http::Response, http::Status> {
+) -> Result<http::Response, middleware::Error> {
     for current in middleware {
-        if let Ok(res) = current.answer(&request) {
-            return Ok(res);
-        } else {
-            continue;
-        }
+        match current.answer(&request) {
+            Err(middleware::Error::NotFound) => continue,
+            res => return res,
+        };
     }
 
-    Err(http::Status::NotFound)
+    Err(middleware::Error::NotFound)
 }
 
-fn create_response(
-    s: String,
-    middleware: &[Box<dyn Middleware>],
-) -> Result<http::Response, http::Status> {
-    let request = http::Request::parse(&s).or(Err(http::Status::BadRequest))?;
-
-    get_response(middleware, &request)
+fn create_response(s: String, middleware: &[Box<dyn Middleware>]) -> Response {
+    match http::Request::parse(&s) {
+        Ok(req) => match get_response(middleware, &req) {
+            Ok(res) => res,
+            Err(e) => match e {
+                middleware::Error::MethodNotAllowed => Response::new(Status::MethodNotAllowed),
+                middleware::Error::NotFound => Response::new(Status::NotFound),
+            },
+        },
+        Err(e) => match e {
+            http::Error::UnsupportedVersion => Response::new(Status::VersionNotSupported),
+            http::Error::UnknownMethod => Response::new(Status::BadRequest),
+            http::Error::MalformedRequest => Response::new(Status::BadRequest),
+        },
+    }
 }
 
 fn handle_client(mut stream: TcpStream, middleware: &[Box<dyn Middleware>]) {
@@ -96,32 +104,15 @@ fn handle_client(mut stream: TcpStream, middleware: &[Box<dyn Middleware>]) {
     let _ = stream.read(&mut buffer[..]).unwrap();
 
     let req_str = str::from_utf8(&buffer).unwrap();
-
     let request = String::from(req_str);
 
     // TODO
     let request_copy = request.clone();
     let first_line = request_copy.splitn(2, "\r\n").next().unwrap();
+    let response = create_response(request, &middleware);
 
-    let response = match create_response(request, &middleware) {
-        Ok(r) => {
-            info!("{} => {}", first_line, r.status);
-            r
-        }
-        // TODO: More custom error types, which diff. cases need to be handled?
-        Err(e) => {
-            error!("{} => {}", first_line, e);
-
-            http::Response {
-                version: http::Version::OneDotOne,
-                status: e,
-                headers: http::Headers {
-                    headers: Vec::new(),
-                },
-                body: "".to_string(),
-            }
-        }
-    };
+    let s = format!("{} => {}", first_line, response.status);
+    info!("{}", s);
 
     let _ = stream.write(format!("{}", response).as_bytes());
 }

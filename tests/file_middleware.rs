@@ -1,4 +1,5 @@
 use turbo_bernd::http;
+use turbo_bernd::middleware;
 use turbo_bernd::middleware::FileMiddleware;
 use turbo_bernd::middleware::Middleware;
 
@@ -73,6 +74,6 @@ fn answer_returns_404() {
     let response_file = file_middleware.answer(&dummy_request_file);
     let response_dir = file_middleware.answer(&dummy_request_dir);
 
-    assert_eq!(response_file, Err(http::Status::NotFound));
-    assert_eq!(response_dir, Err(http::Status::NotFound));
+    assert_eq!(response_file, Err(middleware::Error::NotFound));
+    assert_eq!(response_dir, Err(middleware::Error::NotFound));
 }

@@ -26,19 +26,19 @@ impl Router {
         route.insert(method, f);
     }
 
-    pub fn dispatch(&self, req: &http::Request) -> Result<http::Response, http::Status> {
+    pub fn dispatch(&self, req: &http::Request) -> Result<http::Response, middleware::Error> {
         match self.routes.get(&req.uri) {
             Some(route) => match route.get(&req.method) {
                 Some(f) => Ok(f(req)),
-                None => Err(http::Status::MethodNotAllowed),
+                None => Err(middleware::Error::MethodNotAllowed),
             },
-            None => Err(http::Status::NotFound),
+            None => Err(middleware::Error::NotFound),
         }
     }
 }
 
 impl<'a> Middleware for Router {
-    fn answer(&self, request: &http::Request) -> Result<http::Response, http::Status> {
+    fn answer(&self, request: &http::Request) -> Result<http::Response, middleware::Error> {
         self.dispatch(request)
     }
 }
@@ -102,7 +102,7 @@ mod tests {
         let dummy_request = create_dummy_request();
         let result = router.dispatch(&dummy_request);
 
-        assert_eq!(result, Err(http::Status::NotFound));
+        assert_eq!(result, Err(middleware::Error::NotFound));
     }
 
     #[test]
@@ -113,6 +113,6 @@ mod tests {
         let dummy_request = create_dummy_request();
         let result = router.dispatch(&dummy_request);
 
-        assert_eq!(result, Err(http::Status::MethodNotAllowed));
+        assert_eq!(result, Err(middleware::Error::MethodNotAllowed));
     }
 }

@@ -19,6 +19,25 @@ use std::{error::Error, fmt};
 
 //      Hello World! My payload includes a trailing CRLF.
 
+#[derive(Debug, PartialEq)]
+pub enum Error {
+    UnsupportedVersion,
+    UnknownMethod,
+    MalformedRequest,
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let error = match self {
+            Error::UnsupportedVersion => "Unsupported version",
+            Error::UnknownMethod => "Unknown method",
+            Error::MalformedRequest => "Malformed request",
+        };
+
+        write!(f, "{}", error)
+    }
+}
+
 pub mod request {
     #[derive(Debug, PartialEq)]
     pub enum Header {
@@ -102,10 +121,10 @@ pub enum Version {
 }
 
 impl Version {
-    fn parse(input: &str) -> Result<Self, &'static str> {
+    fn parse(input: &str) -> Result<Self, Error> {
         match input {
             "HTTP/1.1" => Ok(Self::OneDotOne),
-            _ => Err("wrong version"),
+            _ => Err(Error::UnsupportedVersion),
         }
     }
 }
@@ -128,6 +147,7 @@ pub enum Status {
     Forbidden,
     NotFound,
     MethodNotAllowed,
+    VersionNotSupported,
 }
 
 impl fmt::Display for Status {
@@ -139,13 +159,13 @@ impl fmt::Display for Status {
             Self::Forbidden => "402 Forbidden",
             Self::NotFound => "404 Not Found",
             Self::MethodNotAllowed => "405 Method Not Allowed",
+            Self::VersionNotSupported => "505 HTTP Version Not Supported",
         };
 
         write!(f, "{}", status)
     }
 }
 
-impl Error for Status {}
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub enum Method {
@@ -160,7 +180,7 @@ pub enum Method {
 }
 
 impl Method {
-    fn parse(input: &str) -> Result<Self, &'static str> {
+    fn parse(input: &str) -> Result<Self, Error> {
         let method = match input {
             "GET" => Self::Get,
             "HEAD" => Self::Head,
@@ -170,7 +190,7 @@ impl Method {
             "CONNECT" => Self::Connect,
             "OPTIONS" => Self::Options,
             "TRACE" => Self::Trace,
-            _ => return Err("wrong method"),
+            _ => return Err(Error::UnknownMethod),
         };
 
         Ok(method)
@@ -183,7 +203,7 @@ pub struct Uri {
 }
 
 impl Uri {
-    fn parse(input: &str) -> Result<Self, &'static str> {
+    fn parse(input: &str) -> Result<Self, Error> {
         Ok(Self {
             path: input.to_string(),
         })
@@ -218,20 +238,20 @@ impl fmt::Display for Response {
 }
 
 impl Request {
-    pub fn parse(string: &str) -> Result<Self, &'static str> {
+    pub fn parse(string: &str) -> Result<Self, Error> {
         let mut sections = string.splitn(2, "\r\n\r\n");
 
-        let header = sections.next().ok_or("no header")?;
-        let body = sections.next().ok_or("no body")?.to_string();
+        let header = sections.next().ok_or(Error::MalformedRequest)?; // header missing
+        let body = sections.next().ok_or(Error::MalformedRequest)?.to_string(); // body missing
 
         let mut lines = header.split_terminator("\r\n");
-        let req_line = lines.next().ok_or("no request line")?;
+        let req_line = lines.next().ok_or(Error::MalformedRequest)?; // no request line
 
         let mut req_line_tokens = req_line.split(' ');
 
-        let method = Method::parse(req_line_tokens.next().ok_or("no method")?)?;
-        let uri = Uri::parse(req_line_tokens.next().ok_or("no uri")?)?;
-        let version = Version::parse(req_line_tokens.next().ok_or("no version")?)?;
+        let method = Method::parse(req_line_tokens.next().ok_or(Error::MalformedRequest)?)?; // no method
+        let uri = Uri::parse(req_line_tokens.next().ok_or(Error::MalformedRequest)?)?; // no uri
+        let version = Version::parse(req_line_tokens.next().ok_or(Error::MalformedRequest)?)?; // no version
 
         let headers_str: Vec<&str> = lines.collect();
 
@@ -239,8 +259,8 @@ impl Request {
 
         for line in headers_str {
             let mut split_header = line.split(':');
-            let header_key = split_header.next().ok_or("no header key")?;
-            let header_value = split_header.next().ok_or("no header value")?.trim();
+            let header_key = split_header.next().ok_or(Error::MalformedRequest)?; // no header key
+            let header_value = split_header.next().ok_or(Error::MalformedRequest)?.trim(); // no header value
             let header = parse_header(header_key, header_value)?;
             headers.push(header);
         }
@@ -255,7 +275,7 @@ impl Request {
     }
 }
 
-fn parse_header(key: &str, value: &str) -> Result<request::Header, &'static str> {
+fn parse_header(key: &str, value: &str) -> Result<request::Header, Error> {
     let value = value.to_string();
     let header = match key {
         "Host" => request::Header::Host(value),
@@ -312,14 +332,14 @@ mod tests {
         assert_eq!(Method::parse("OPTIONS"), Ok(Method::Options));
         assert_eq!(Method::parse("TRACE"), Ok(Method::Trace));
 
-        assert_eq!(Method::parse("SOMETHING"), Err("wrong method"));
+        assert_eq!(Method::parse("SOMETHING"), Err(Error::UnknownMethod));
     }
 
     #[test]
     fn version_parsing() {
         assert_eq!(Version::parse("HTTP/1.1"), Ok(Version::OneDotOne));
 
-        assert_eq!(Version::parse("XYZ/1.0"), Err("wrong version"));
+        assert_eq!(Version::parse("XYZ/1.0"), Err(Error::UnsupportedVersion),);
     }
 
     // #[test]

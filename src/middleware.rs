@@ -1,9 +1,26 @@
 use crate::http;
 
-use std::{fs::File, io::prelude::*, path::Path};
+use std::{fmt, fs::File, io::prelude::*, path::Path};
+
+#[derive(Debug, PartialEq)]
+pub enum Error {
+    NotFound,
+    MethodNotAllowed,
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let error = match self {
+            Error::NotFound => "Not found",
+            Error::MethodNotAllowed => "Method not allowed",
+        };
+
+        write!(f, "{}", error)
+    }
+}
 
 pub trait Middleware: Sync {
-    fn answer(&self, request: &http::Request) -> Result<http::Response, http::Status>;
+    fn answer(&self, request: &http::Request) -> Result<http::Response, Error>;
 }
 
 pub struct FileMiddleware<'a> {
@@ -17,7 +34,7 @@ impl<'a> FileMiddleware<'a> {
 }
 
 impl<'a> Middleware for FileMiddleware<'a> {
-    fn answer(&self, request: &http::Request) -> Result<http::Response, http::Status> {
+    fn answer(&self, request: &http::Request) -> Result<http::Response, Error> {
         let mut buffer = String::new();
 
         let file_path = format!("{}{}", self.file_directory, request.uri.path);
@@ -29,20 +46,17 @@ impl<'a> Middleware for FileMiddleware<'a> {
             buffer.push_str("<body>");
 
             // if err: problem reading dir
-            let entries = path.read_dir().or(Err(http::Status::NotFound))?;
+            let entries = path.read_dir().or(Err(Error::NotFound))?;
 
             for entry in entries {
                 // if err: problem reading dir entry
-                let entry = entry.or(Err(http::Status::NotFound))?;
+                let entry = entry.or(Err(Error::NotFound))?;
 
                 // if err: entry not a valid string
-                let mut entry_name = entry
-                    .file_name()
-                    .into_string()
-                    .or(Err(http::Status::NotFound))?;
+                let mut entry_name = entry.file_name().into_string().or(Err(Error::NotFound))?;
 
                 // if err: problem with entry metadata
-                if entry.metadata().or(Err(http::Status::NotFound))?.is_dir() {
+                if entry.metadata().or(Err(Error::NotFound))?.is_dir() {
                     entry_name.push('/');
                 }
 
@@ -58,7 +72,7 @@ impl<'a> Middleware for FileMiddleware<'a> {
         } else {
             let _ = match File::open(file_path) {
                 Ok(mut f) => f.read_to_string(&mut buffer),
-                Err(_) => return Err(http::Status::NotFound),
+                Err(_) => return Err(Error::NotFound),
             };
         }
 
