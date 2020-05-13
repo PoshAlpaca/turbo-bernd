@@ -175,6 +175,27 @@ impl fmt::Display for Status {
     }
 }
 
+pub enum ResponseClass {
+    Informational,
+    Successful,
+    Redirection,
+    ClientError,
+    ServerError,
+}
+
+impl ResponseClass {
+    fn new(status: &Status) -> ResponseClass {
+        match status {
+            Status::Ok => Self::Successful,
+            Status::BadRequest => Self::ClientError,
+            Status::Unauthorized => Self::ClientError,
+            Status::Forbidden => Self::ClientError,
+            Status::NotFound => Self::ClientError,
+            Status::MethodNotAllowed => Self::ClientError,
+            Status::VersionNotSupported => Self::ServerError,
+        }
+    }
+}
 
 #[derive(Debug, Eq, PartialEq, Hash)]
 pub enum Method {
@@ -268,6 +289,13 @@ impl Response {
         self
     }
 }
+
+impl Response {
+    pub fn class(&self) -> ResponseClass {
+        ResponseClass::new(&self.status)
+    }
+}
+
 impl Request {
     pub fn parse(string: &str) -> Result<Self, Error> {
         let mut sections = string.splitn(2, "\r\n\r\n");

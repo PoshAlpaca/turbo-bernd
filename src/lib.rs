@@ -11,7 +11,7 @@ pub mod http;
 pub mod middleware;
 pub mod routing;
 
-use http::{Response, Status};
+use http::{Response, ResponseClass, Status};
 use middleware::Middleware;
 
 struct Config {
@@ -112,7 +112,14 @@ fn handle_client(mut stream: TcpStream, middleware: &[Box<dyn Middleware>]) {
     let response = create_response(request, &middleware);
 
     let s = format!("{} => {}", first_line, response.status);
-    info!("{}", s);
+
+    match response.class() {
+        ResponseClass::Informational => info!("{}", s),
+        ResponseClass::Successful => info!("{}", s),
+        ResponseClass::Redirection => info!("{}", s),
+        ResponseClass::ClientError => error!("{}", s),
+        ResponseClass::ServerError => error!("{}", s),
+    }
 
     let _ = stream.write(format!("{}", response).as_bytes());
 }
