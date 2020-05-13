@@ -2,11 +2,31 @@
 
 An HTTP server written in Rust
 
-## Load testing
+## Testing
 
-To load test, run:
+### Coverage
 
 ```shell
+docker run --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin:0.12.2-nightly -o Html
+```
+
+### Load testing
+
+```shell
+cargo install drill
 cargo run
 drill --benchmark benchmark.yml
 ```
+
+### Fuzz testing
+
+```shell
+cargo install afl
+cargo afl build
+cargo afl fuzz -i in -o out target/debug/url-fuzz-target
+```
+
+- `in` is a directory containing input files that AFL uses as seeds. These files can have any name and their contents help AFL because it will not need to learn the correct text structure itself.
+- `out` is a directory where AFL will store its state and results.
+
+The output of AFL is explained [here](https://lcamtuf.coredump.cx/afl/status_screen.txt).
