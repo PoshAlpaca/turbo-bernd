@@ -7,6 +7,6 @@ An HTTP server written in Rust
 To load test, run:
 
 ```shell
-cargo run 5000
+cargo run
 drill --benchmark benchmark.yml
 ```

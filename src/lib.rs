@@ -14,43 +14,39 @@ pub mod routing;
 use http::{Response, ResponseClass, Status};
 use middleware::Middleware;
 
-struct Config {
-    port: String,
+pub struct Config {
+    port: u16,
 }
 
 impl Config {
-    fn new(args: &[String]) -> Result<Config, &str> {
-        if args.len() < 2 {
-            return Err("too few arguments, please include port");
-        }
+    pub fn new(port: u16) -> Config {
+        Config { port }
+    }
 
-        let port = args[1].clone();
-
-        Ok(Config { port })
+    pub fn from_args() -> Config {
+        let args: Vec<String> = env::args().collect();
+        let port = u16::from_str_radix(&args[1], 10).expect("Supplied port is invalid");
+        Config { port }
     }
 }
 
 pub struct Application {
-    config: Config,
     middleware: Vec<Box<dyn Middleware>>,
 }
 
 impl Application {
     pub fn new(middleware: Vec<Box<dyn Middleware>>) -> Application {
-        let args: Vec<String> = env::args().collect();
-        let config = Config::new(&args).unwrap();
-
-        Application { config, middleware }
+        Application { middleware }
     }
 
-    pub fn run(&self) {
+    pub fn run(&self, config: Config) {
         info!(
             "Starting {} {}",
             env!("CARGO_PKG_NAME"),
             env!("CARGO_PKG_VERSION")
         );
 
-        let address = format!("127.0.0.1:{}", self.config.port);
+        let address = format!("127.0.0.1:{}", config.port);
 
         info!("Listening at: {}", address);
         let listener = TcpListener::bind(address).unwrap();

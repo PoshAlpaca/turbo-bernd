@@ -4,7 +4,7 @@ use turbo_bernd::{
     http,
     middleware::{FileMiddleware, Middleware},
     routing::Router,
-    Application,
+    Application, Config,
 };
 
 fn main() {
@@ -14,7 +14,8 @@ fn main() {
     let file_middleware = Box::new(FileMiddleware::new("public"));
     let middleware: Vec<Box<dyn Middleware>> = vec![router, file_middleware];
 
-    Application::new(middleware).run();
+    let config = Config::new(5000);
+    Application::new(middleware).run(config);
 }
 
 fn setup_router() -> Router {
