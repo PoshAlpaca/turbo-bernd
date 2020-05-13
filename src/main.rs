@@ -1,3 +1,4 @@
+use mime;
 use pretty_env_logger;
 use turbo_bernd::{
     http,
@@ -19,13 +20,8 @@ fn main() {
 fn setup_router() -> Router {
     let mut router = Router::new();
 
-    router.register("/hello", http::Method::Get, |_| http::Response {
-        version: http::Version::OneDotOne,
-        status: http::Status::Ok,
-        headers: http::Headers {
-            headers: Vec::new(),
-        },
-        body: "Hello, world!".to_string(),
+    router.register("/hello", http::Method::Get, |_| {
+        http::Response::new(http::Status::Ok).body("Hello, world!".to_string(), mime::TEXT_PLAIN)
     });
 
     router

@@ -63,9 +63,7 @@ mod tests {
         http::Response {
             status: http::Status::Ok,
             version: http::Version::OneDotOne,
-            headers: http::Headers {
-                headers: Vec::new(),
-            },
+            headers: http::Headers::new(),
             body: "Hello, test!".to_string(),
         }
     }

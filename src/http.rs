@@ -1,4 +1,5 @@
-use std::{error::Error, fmt};
+use mime;
+use std::{collections::HashMap, fmt};
 
 // "http://www.example.com/hello.txt":
 
@@ -102,16 +103,24 @@ pub mod response {
 
 #[derive(Debug, PartialEq)]
 pub struct Headers {
-    pub headers: Vec<response::Header>,
+    pub headers: HashMap<String, String>,
 }
 
 impl fmt::Display for Headers {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         for header in &self.headers {
-            write!(f, "{}\r\n", header)?;
+            write!(f, "{}: {}\r\n", header.0, header.1)?;
         }
 
         Ok(())
+    }
+}
+
+impl Headers {
+    pub fn new() -> Headers {
+        Headers {
+            headers: HashMap::new(),
+        }
     }
 }
 
@@ -237,6 +246,28 @@ impl fmt::Display for Response {
     }
 }
 
+impl Response {
+    pub fn new(status: Status) -> Response {
+        Response {
+            version: Version::OneDotOne,
+            status: status,
+            headers: Headers::new(),
+            body: "".to_string(),
+        }
+    }
+
+    pub fn header(mut self, header: (&str, String)) -> Response {
+        self.headers.headers.insert(header.0.to_string(), header.1);
+        self
+    }
+
+    pub fn body(mut self, body: String, mime: mime::Mime) -> Response {
+        self = self.header(("Content-Length", body.len().to_string()));
+        self = self.header(("Content-Type", mime.essence_str().to_string()));
+        self.body = body;
+        self
+    }
+}
 impl Request {
     pub fn parse(string: &str) -> Result<Self, Error> {
         let mut sections = string.splitn(2, "\r\n\r\n");

@@ -26,9 +26,7 @@ fn create_dummy_response(path: &str) -> http::Response {
     http::Response {
         status: http::Status::Ok,
         version: http::Version::OneDotOne,
-        headers: http::Headers {
-            headers: Vec::new(),
-        },
+        headers: http::Headers::new(),
         body: buffer,
     }
 }

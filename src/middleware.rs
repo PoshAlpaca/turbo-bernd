@@ -1,5 +1,6 @@
 use crate::http;
 
+use mime;
 use std::{fmt, fs::File, io::prelude::*, path::Path};
 
 #[derive(Debug, PartialEq)]
@@ -76,19 +77,7 @@ impl<'a> Middleware for FileMiddleware<'a> {
             };
         }
 
-        let content_length =
-            http::response::Header::Custom("Content-Length".to_string(), buffer.len().to_string());
-        let content_type =
-            http::response::Header::Custom("Content-Type".to_string(), "text/html".to_string());
-
-        let response = http::Response {
-            version: http::Version::OneDotOne,
-            status: http::Status::Ok,
-            headers: http::Headers {
-                headers: vec![content_length, content_type],
-            },
-            body: buffer,
-        };
+        let response = http::Response::new(http::Status::Ok).body(buffer, mime::TEXT_HTML);
 
         Ok(response)
     }
