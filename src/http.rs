@@ -249,6 +249,35 @@ pub struct Request {
     pub body: String,
 }
 
+impl Request {
+    fn new(uri: &str) -> Request {
+        Request {
+            method: Method::Get,
+            uri: Uri::parse(uri).unwrap(),
+            version: Version::OneDotOne,
+            headers: Vec::new(),
+            body: "".to_string(),
+        }
+    }
+
+    pub fn get(uri: &str) -> Request {
+        let mut req = Self::new(uri);
+        req.method = Method::Get;
+        req
+    }
+
+    pub fn post(uri: &str) -> Request {
+        let mut req = Self::new(uri);
+        req.method = Method::Post;
+        req
+    }
+
+    pub fn body(mut self, body: String) -> Request {
+        self.body = body;
+        self
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub struct Response {
     pub version: Version,
