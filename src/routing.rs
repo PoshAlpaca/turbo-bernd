@@ -46,26 +46,16 @@ impl<'a> Middleware for Router {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use http::{Request, Response, Status};
+    use mime;
 
-    fn create_dummy_request() -> http::Request {
-        http::Request {
-            method: http::Method::Get,
-            uri: http::Uri {
-                path: "/test".to_string(),
-            },
-            version: http::Version::OneDotOne,
-            headers: Vec::new(),
-            body: "".to_string(),
-        }
-    }
+    // fn create_dummy_request() -> Request {
+    //     Request::get("/test")
+    // }
 
-    fn create_dummy_response() -> http::Response {
-        http::Response {
-            status: http::Status::Ok,
-            version: http::Version::OneDotOne,
-            headers: http::Headers::new(),
-            body: "Hello, test!".to_string(),
-        }
+    fn create_dummy_response() -> Response {
+        let x = Response::new(Status::Ok).body("Hello, test!", mime::TEXT_PLAIN);
+        x
     }
 
     #[test]
@@ -73,7 +63,7 @@ mod tests {
         let mut router = Router::new();
         router.register("/test", http::Method::Get, |_| create_dummy_response());
 
-        let dummy_request = create_dummy_request();
+        let dummy_request = Request::get("/test");
         let route = router.routes.get(&dummy_request.uri).unwrap();
         let function = route.get(&dummy_request.method).unwrap();
         let response = function(&dummy_request);
@@ -86,29 +76,29 @@ mod tests {
         let mut router = Router::new();
         router.register("/test", http::Method::Get, |_| create_dummy_response());
 
-        let dummy_request = create_dummy_request();
+        let dummy_request = Request::get("/test");
         let response = router.dispatch(&dummy_request).unwrap();
 
         assert_eq!(response, create_dummy_response());
     }
 
     #[test]
-    fn dispatch_returns_404() {
+    fn dispatch_returns_not_found() {
         let mut router = Router::new();
         router.register("/not_test", http::Method::Get, |_| create_dummy_response());
 
-        let dummy_request = create_dummy_request();
+        let dummy_request = Request::get("/test");
         let result = router.dispatch(&dummy_request);
 
         assert_eq!(result, Err(middleware::Error::NotFound));
     }
 
     #[test]
-    fn dispatch_returns_405() {
+    fn dispatch_returns_method_not_allowed() {
         let mut router = Router::new();
         router.register("/test", http::Method::Post, |_| create_dummy_response());
 
-        let dummy_request = create_dummy_request();
+        let dummy_request = Request::get("/test");
         let result = router.dispatch(&dummy_request);
 
         assert_eq!(result, Err(middleware::Error::MethodNotAllowed));
