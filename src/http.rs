@@ -363,7 +363,7 @@ mod tests {
     fn version_parsing() {
         assert_eq!(Version::parse("HTTP/1.1"), Ok(Version::OneDotOne));
 
-        assert_eq!(Version::parse("XYZ/1.0"), Err(Error::UnsupportedVersion),);
+        assert_eq!(Version::parse("XYZ/1.0"), Err(Error::UnsupportedVersion));
     }
 
     // #[test]
@@ -375,4 +375,52 @@ mod tests {
     //         }
     //     });
     // }
+
+    #[test]
+    fn request_building() {
+        let get_req = Request::get("/test");
+        assert_eq!(get_req.method, Method::Get);
+        assert_eq!(get_req.uri.path, "/test");
+
+        let post_req = Request::post("/test");
+        assert_eq!(post_req.method, Method::Post);
+        assert_eq!(post_req.uri.path, "/test");
+
+        let post_req = post_req.body("Hello, world!", mime::TEXT_PLAIN);
+        assert_eq!(post_req.body, "Hello, world!".to_string());
+        assert_eq!(post_req.headers.get("Content-Length").unwrap(), "13");
+        assert_eq!(post_req.headers.get("Content-Type").unwrap(), "text/plain");
+    }
+
+    #[test]
+    fn response_building() {
+        let response = Response::new(Status::Ok);
+        assert_eq!(response.status, Status::Ok);
+
+        let response = response.body("Hello, world!", mime::TEXT_PLAIN);
+        assert_eq!(response.body, "Hello, world!".to_string());
+        assert_eq!(response.headers.get("Content-Length").unwrap(), "13");
+        assert_eq!(response.headers.get("Content-Type").unwrap(), "text/plain");
+
+        let response = response.header(("Hello", "World"));
+        assert_eq!(response.headers.get("Hello").unwrap(), "World");
+    }
+
+    #[test]
+    fn response_formatting() {
+        let response = Response::new(Status::Ok)
+            .body("Hello, world!", mime::TEXT_PLAIN)
+            .header(("Hello", "World!"));
+
+        let response_string = format!("{}", response);
+
+        // This is a workaround because when the header HashMap is serialized
+        // the headers don't always end up in the same order
+        // TODO: Unfortunately this does not catch all possible errors
+        assert!(response_string.starts_with("HTTP/1.1 200 OK\r\n"));
+        assert!(response_string.contains("Content-Length: 13\r\n"));
+        assert!(response_string.contains("Content-Type: text/plain\r\n"));
+        assert!(response_string.contains("Hello: World!\r\n"));
+        assert!(response_string.ends_with("\r\nHello, world!"));
+    }
 }
