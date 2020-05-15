@@ -233,6 +233,12 @@ pub struct Uri {
 }
 
 impl Uri {
+    pub fn new(path: &str) -> Uri {
+        Uri {
+            path: path.to_string(),
+        }
+    }
+
     fn parse(input: &str) -> Result<Self, Error> {
         Ok(Self {
             path: input.to_string(),
