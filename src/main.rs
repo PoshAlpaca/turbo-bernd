@@ -1,20 +1,29 @@
+use mime;
 use pretty_env_logger;
-use std::{env, process};
-use turbo_bernd::Config;
+use turbo_bernd::{
+    http,
+    middleware::{FileMiddleware, Middleware},
+    routing::Router,
+    Application, Config,
+};
 
 fn main() {
     pretty_env_logger::init_timed();
 
-    let args: Vec<String> = env::args().collect();
+    let router = Box::new(setup_router());
+    let file_middleware = Box::new(FileMiddleware::new("public"));
+    let middleware: Vec<Box<dyn Middleware>> = vec![router, file_middleware];
 
-    let config = Config::new(&args).unwrap_or_else(|err| {
-        eprintln!("Problem parsing arguments: {}", err);
-        process::exit(1);
+    let config = Config::new(5000);
+    Application::new(middleware).run(config);
+}
+
+fn setup_router() -> Router {
+    let mut router = Router::new();
+
+    router.register("/hello", http::Method::Get, |_| {
+        http::Response::new(http::Status::Ok).body("Hello, world!".to_string(), mime::TEXT_PLAIN)
     });
 
-    // we don't return anything in the Ok case so only need to handle Err case
-    if let Err(e) = turbo_bernd::run(config) {
-        eprintln!("Application error: {}", e);
-        process::exit(1);
-    }
+    router
 }
