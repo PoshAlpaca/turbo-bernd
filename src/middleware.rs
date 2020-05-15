@@ -77,7 +77,7 @@ impl<'a> Middleware for FileMiddleware<'a> {
             };
         }
 
-        let response = http::Response::new(http::Status::Ok).body(buffer, mime::TEXT_HTML);
+        let response = http::Response::new(http::Status::Ok).body(&buffer, mime::TEXT_HTML);
 
         Ok(response)
     }

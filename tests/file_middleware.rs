@@ -34,7 +34,7 @@ fn answer_returns_response_with_file() {
         .unwrap()
         .read_to_string(&mut buffer);
 
-    let dummy_response = Response::new(http::Status::Ok).body(buffer, mime::TEXT_HTML);
+    let dummy_response = Response::new(http::Status::Ok).body(&buffer, mime::TEXT_HTML);
 
     assert_eq!(response.unwrap().body, dummy_response.body);
 }

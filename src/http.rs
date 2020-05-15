@@ -272,8 +272,8 @@ impl Request {
         req
     }
 
-    pub fn body(mut self, body: String) -> Request {
-        self.body = body;
+    pub fn body(mut self, body: &str) -> Request {
+        self.body = body.to_string();
         self
     }
 }
@@ -306,15 +306,16 @@ impl Response {
         }
     }
 
-    pub fn header(mut self, header: (&str, String)) -> Response {
-        self.headers.headers.insert(header.0.to_string(), header.1);
+    pub fn header(mut self, header: (&str, &str)) -> Response {
+        self.headers.headers.
+            .insert(header.0.to_string(), header.1.to_string());
         self
     }
 
-    pub fn body(mut self, body: String, mime: mime::Mime) -> Response {
-        self = self.header(("Content-Length", body.len().to_string()));
-        self = self.header(("Content-Type", mime.essence_str().to_string()));
-        self.body = body;
+    pub fn body(mut self, body: &str, mime: mime::Mime) -> Response {
+        self = self.header(("Content-Length", &body.len().to_string()));
+        self = self.header(("Content-Type", mime.essence_str()));
+        self.body = body.to_string();
         self
     }
 }
