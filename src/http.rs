@@ -312,6 +312,8 @@ impl Request {
 mod tests {
     use super::*;
     use afl::fuzz;
+    extern crate test;
+    use test::Bencher;
 
     fn create_dummy_request_string() -> &'static str {
         "GET /hello.txt HTTP/1.1\r\n\
@@ -343,6 +345,13 @@ mod tests {
             request.body,
             "This is the body \r\nof the request.\r\n".to_string()
         );
+    }
+
+    #[bench]
+    fn request_parsing_bench(b: &mut Bencher) {
+        let http_req = create_dummy_request_string();
+
+        b.iter(|| Request::parse(http_req))
     }
 
     #[test]

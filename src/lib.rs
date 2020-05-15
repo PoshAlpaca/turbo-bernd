@@ -1,3 +1,5 @@
+#![feature(test)]
+
 use crossbeam::scope;
 use log::{error, info};
 use std::{
