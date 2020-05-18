@@ -311,7 +311,6 @@ impl Request {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use afl::fuzz;
     extern crate test;
     use test::Bencher;
 
@@ -374,16 +373,6 @@ mod tests {
 
         assert_eq!(Version::parse("XYZ/1.0"), Err(Error::UnsupportedVersion));
     }
-
-    // #[test]
-    // #[ignore]
-    // fn fuzzing() {
-    //     fuzz!(|data: &[u8]| {
-    //         if let Ok(s) = std::str::from_utf8(data) {
-    //             let _ = Request::parse(&s);
-    //         }
-    //     });
-    // }
 
     #[test]
     fn request_building() {

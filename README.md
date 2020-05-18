@@ -23,8 +23,9 @@ drill --benchmark sustained_load.yml
 
 ```shell
 cargo install afl
+cd fuzzing
 cargo afl build
-cargo afl fuzz -i in -o out target/debug/url-fuzz-target
+cargo afl fuzz -i in/ -o out/ target/debug/fuzzing
 ```
 
 - `in` is a directory containing input files that AFL uses as seeds. These files can have any name and their contents help AFL because it will not need to learn the correct text structure itself.

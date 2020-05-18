@@ -1,5 +1,5 @@
 [package]
-name = "turbo_bernd"
+name = "fuzzing"
 version = "0.1.0"
 authors = ["Nikolai Guyot <nikolai.guyot@code.berlin>"]
 edition = "2018"
@@ -7,10 +7,6 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-log = "0.4.8"
-pretty_env_logger = "0.4"
-crossbeam = "0.7"
+afl = "0.5.2"
 mime = "0.3"
-
-[dev-dependencies]
-drill = "0.5.0"
+turbo_bernd = { path = "../" }
