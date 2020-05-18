@@ -1,12 +1,14 @@
 #![feature(test)]
 
 use crossbeam::scope;
-use log::{error, info};
+use log::{debug, error, info};
 use std::{
     env,
-    io::prelude::*,
+    io::{self, prelude::*},
     net::{TcpListener, TcpStream},
     str,
+    sync::mpsc::{self, Receiver, TryRecvError},
+    time::Duration,
 };
 
 pub mod http;
@@ -42,6 +44,12 @@ impl Application {
     }
 
     pub fn run(&self, config: Config) {
+        let (_tx, rx) = mpsc::channel();
+
+        self.run_graceful(config, rx);
+    }
+
+    pub fn run_graceful(&self, config: Config, receiver: Receiver<()>) {
         info!(
             "Starting {} {}",
             env!("CARGO_PKG_NAME"),
@@ -52,72 +60,97 @@ impl Application {
 
         info!("Listening at: {}", address);
         let listener = TcpListener::bind(address).unwrap();
+        listener
+            .set_nonblocking(true)
+            .expect("Could not set listener to non-blocking");
 
         for stream in listener.incoming() {
-            let stream = stream.unwrap();
+            match stream {
+                Ok(stream) => {
+                    debug!("Handling new stream");
 
-            scope(|s| {
-                s.spawn(move |_| {
-                    handle_client(stream, &self.middleware);
-                });
-            })
-            .unwrap();
+                    scope(|s| {
+                        s.spawn(move |_| {
+                            self.handle_client(stream);
+                        });
+                    })
+                    .unwrap();
+                }
+                Err(ref e) => {
+                    if e.kind() == io::ErrorKind::WouldBlock {
+                        std::thread::sleep(Duration::from_millis(100));
+                    }
+                }
+            }
+
+            match receiver.try_recv() {
+                Ok(_) => {
+                    info!("Shutting down");
+                    break;
+                }
+                Err(TryRecvError::Disconnected) => {
+                    debug!("Application's termination channel disconnected");
+                }
+                Err(TryRecvError::Empty) => {}
+            }
         }
     }
-}
 
-fn get_response(
-    middleware: &[Box<dyn Middleware>],
-    request: &http::Request,
-) -> Result<http::Response, middleware::Error> {
-    for current in middleware {
-        match current.answer(&request) {
-            Err(middleware::Error::NotFound) => continue,
-            res => return res,
-        };
-    }
-
-    Err(middleware::Error::NotFound)
-}
-
-fn create_response(s: String, middleware: &[Box<dyn Middleware>]) -> Response {
-    match http::Request::parse(&s) {
-        Ok(req) => match get_response(middleware, &req) {
-            Ok(res) => res,
-            Err(e) => match e {
+    pub fn respond_to(&self, req: &http::Request) -> Response {
+        self.dispatch_to_middleware(&req)
+            .unwrap_or_else(|e| match e {
                 middleware::Error::MethodNotAllowed => Response::new(Status::MethodNotAllowed),
                 middleware::Error::NotFound => Response::new(Status::NotFound),
+            })
+    }
+
+    pub fn respond_to_str(&self, req_str: &str) -> Response {
+        match http::Request::parse(req_str) {
+            Ok(req) => self.respond_to(&req),
+            Err(e) => match e {
+                http::Error::UnsupportedVersion => Response::new(Status::VersionNotSupported),
+                http::Error::UnknownMethod => Response::new(Status::BadRequest),
+                http::Error::MalformedRequest => Response::new(Status::BadRequest),
             },
-        },
-        Err(e) => match e {
-            http::Error::UnsupportedVersion => Response::new(Status::VersionNotSupported),
-            http::Error::UnknownMethod => Response::new(Status::BadRequest),
-            http::Error::MalformedRequest => Response::new(Status::BadRequest),
-        },
-    }
-}
-
-fn handle_client(mut stream: TcpStream, middleware: &[Box<dyn Middleware>]) {
-    let mut buffer = [0; 1024];
-    let _ = stream.read(&mut buffer[..]).unwrap();
-
-    let req_str = str::from_utf8(&buffer).unwrap();
-    let request = String::from(req_str);
-
-    // TODO
-    let request_copy = request.clone();
-    let first_line = request_copy.splitn(2, "\r\n").next().unwrap();
-    let response = create_response(request, &middleware);
-
-    let s = format!("{} => {}", first_line, response.status);
-
-    match response.class() {
-        ResponseClass::Informational => info!("{}", s),
-        ResponseClass::Successful => info!("{}", s),
-        ResponseClass::Redirection => info!("{}", s),
-        ResponseClass::ClientError => error!("{}", s),
-        ResponseClass::ServerError => error!("{}", s),
+        }
     }
 
-    let _ = stream.write(format!("{}", response).as_bytes());
+    fn dispatch_to_middleware(
+        &self,
+        request: &http::Request,
+    ) -> Result<http::Response, middleware::Error> {
+        for current in &self.middleware {
+            match current.answer(&request) {
+                Err(middleware::Error::NotFound) => continue,
+                res => return res,
+            };
+        }
+
+        Err(middleware::Error::NotFound)
+    }
+
+    fn handle_client(&self, mut stream: TcpStream) {
+        let mut buffer = [0; 1024];
+        let _ = stream.read(&mut buffer[..]).unwrap();
+
+        let req_str = str::from_utf8(&buffer).unwrap();
+        let request = String::from(req_str);
+
+        // TODO
+        let request_copy = request.clone();
+        let first_line = request_copy.splitn(2, "\r\n").next().unwrap();
+        let response = self.respond_to_str(&request);
+
+        let s = format!("{} => {}", first_line, response.status);
+
+        match response.class() {
+            ResponseClass::Informational => info!("{}", s),
+            ResponseClass::Successful => info!("{}", s),
+            ResponseClass::Redirection => info!("{}", s),
+            ResponseClass::ClientError => error!("{}", s),
+            ResponseClass::ServerError => error!("{}", s),
+        }
+
+        let _ = stream.write(format!("{}", response).as_bytes());
+    }
 }
