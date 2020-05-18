@@ -16,6 +16,7 @@ docker run --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpau
 cargo install drill
 cargo run
 drill --benchmark benchmark.yml
+drill --benchmark sustained_load.yml
 ```
 
 ### Fuzz testing

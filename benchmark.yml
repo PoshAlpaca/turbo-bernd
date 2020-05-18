@@ -1,23 +1,27 @@
 ---
 
-threads: 4
+threads: 8
 base: 'http://localhost:5000'
-iterations: 3
-rampup: 2
+iterations: 6
+rampup: 4
 
 plan:
   - name: Hello world
     request:
       url: /hello
 
-  - name: Big test
+  - name: Big HTML file (~1 KB)
     request:
       url: /big_test.html
 
-  - name: Very big test
+  - name: Very big HTML file (~1 MB)
     request:
       url: /very_big_test.html
 
-  - name: Random directory
+  - name: Directory
     request:
       url: /random_dir
+
+  - name: Nonexistent directory
+    request:
+      url: /wrong_dir

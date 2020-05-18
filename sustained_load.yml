@@ -1,0 +1,10 @@
+---
+
+threads: 10
+base: 'http://localhost:5000'
+iterations: 1000
+
+plan:
+  - name: Big HTML file (~1 KB)
+    request:
+      url: /big_test.html
