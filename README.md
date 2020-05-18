@@ -7,7 +7,7 @@ An HTTP server written in Rust
 ### Coverage
 
 ```shell
-docker run --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin:0.12.2-nightly -o Html
+docker run --security-opt seccomp=unconfined -v "${PWD}:/volume" xd009642/tarpaulin:0.12.2-nightly cargo tarpaulin -o Html
 ```
 
 ### Load testing
