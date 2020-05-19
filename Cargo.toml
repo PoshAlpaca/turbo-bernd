@@ -14,3 +14,4 @@ mime = "0.3"
 
 [dev-dependencies]
 drill = "0.5.0"
+mockall = { version = "0.7.1", features = ["nightly"] }

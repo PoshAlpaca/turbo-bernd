@@ -154,3 +154,89 @@ impl Application {
         let _ = stream.write(format!("{}", response).as_bytes());
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use http::Request;
+    use middleware::MockMiddleware;
+
+    #[test]
+    fn mytest() {
+        let mut mock = MockMiddleware::new();
+        mock.expect_answer()
+            .times(1)
+            .returning(|_| Ok(Response::new(Status::Ok)));
+
+        let req = Request::get("/hello");
+
+        assert_eq!(Ok(Response::new(Status::Ok)), mock.answer(&req));
+    }
+
+    #[test]
+    fn dispatch_to_middleware_respects_ordering() {
+        let mut mock_a = MockMiddleware::new();
+        mock_a
+            .expect_answer()
+            .times(1)
+            .returning(|_| Ok(Response::new(Status::Ok)));
+
+        let mut mock_b = MockMiddleware::new();
+        mock_b
+            .expect_answer()
+            .times(0)
+            .returning(|_| Ok(Response::new(Status::Ok)));
+
+        let application = Application::new(vec![Box::new(mock_a), Box::new(mock_b)]);
+
+        let req = Request::get("/");
+
+        let res = application.dispatch_to_middleware(&req);
+
+        assert_eq!(res, Ok(Response::new(Status::Ok)));
+    }
+
+    #[test]
+    fn dispatch_to_middleware_skips_not_found() {
+        let mut mock_a = MockMiddleware::new();
+        mock_a
+            .expect_answer()
+            .times(1)
+            .returning(|_| Err(middleware::Error::NotFound));
+
+        let mut mock_b = MockMiddleware::new();
+        mock_b
+            .expect_answer()
+            .times(1)
+            .returning(|_| Ok(Response::new(Status::Ok)));
+
+        let application = Application::new(vec![Box::new(mock_a), Box::new(mock_b)]);
+
+        let req = Request::get("/");
+
+        let res = application.dispatch_to_middleware(&req);
+
+        assert_eq!(res, Ok(Response::new(Status::Ok)));
+    }
+
+    #[test]
+    fn respond_to_returns_error_responses() {
+        let application = Application::new(vec![]);
+
+        let req = Request::get("/test");
+        let res = application.respond_to(&req);
+
+        assert_eq!(res.status, Status::NotFound);
+    }
+
+    #[test]
+    fn respond_to_str_returns_error_responses() {
+        let application = Application::new(vec![]);
+
+        // TODO: Fix parsing problem with "\r\n\r\n"
+        let req_str = "GET /test HTTP/2.0\r\n\r\n";
+        let res = application.respond_to_str(req_str);
+
+        assert_eq!(res.status, Status::VersionNotSupported);
+    }
+}

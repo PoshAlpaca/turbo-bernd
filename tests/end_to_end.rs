@@ -8,60 +8,11 @@ use std::{
     thread,
 };
 use turbo_bernd::{
-    self,
-    http::{self, Request},
+    self, http,
     middleware::{FileMiddleware, Middleware},
     routing::Router,
     Application, Config,
 };
-extern crate test;
-use test::bench::Bencher;
-
-#[bench]
-fn request_large_file(b: &mut Bencher) {
-    let application = Application::new(vec![]);
-    let request = Request::get("/test_two/big_test.html");
-    b.iter(|| application.respond_to(&request));
-}
-
-#[test]
-fn respects_middleware_order() {
-    let mut router_a = Router::new();
-    router_a.register("/test", http::Method::Get, |_| {
-        http::Response::new(http::Status::Ok).body("Hello from Router A", mime::TEXT_PLAIN)
-    });
-
-    let mut router_b = Router::new();
-    router_b.register("/test", http::Method::Get, |_| {
-        http::Response::new(http::Status::Ok).body("Hello from Router B", mime::TEXT_PLAIN)
-    });
-
-    let application = Application::new(vec![Box::new(router_a), Box::new(router_b)]);
-    let request = Request::get("/test");
-    let response = application.respond_to(&request);
-    assert_eq!(response.body, "Hello from Router A");
-}
-
-#[test]
-fn skips_middleware_on_notfound() {
-    let router_a = Router::new();
-
-    let mut router_b = Router::new();
-    router_b.register("/test", http::Method::Get, |_| {
-        http::Response::new(http::Status::Ok).body("Hello from Router B", mime::TEXT_PLAIN)
-    });
-
-    let application = Application::new(vec![Box::new(router_a), Box::new(router_b)]);
-    let request = Request::get("/test");
-    let response = application.respond_to(&request);
-    assert_eq!(response.body, "Hello from Router B");
-}
-
-#[ignore]
-#[test]
-fn malformed_http() {
-    // turbo_bernd::run();
-}
 
 #[test]
 fn e2e() {
