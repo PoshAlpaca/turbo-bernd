@@ -39,91 +39,6 @@ impl fmt::Display for Error {
     }
 }
 
-pub mod request {
-    #[derive(Debug, PartialEq)]
-    pub enum Header {
-        CacheControl(String),
-        Expect(String),
-        Host(String),
-        MaxForwards(String),
-        Pragma(String),
-        Range(String),
-        TE(String),
-
-        IfMatch(String),
-        IfNoneMatch(String),
-        IfModifiedSince(String),
-        IfUnmodifiedSince(String),
-        IfRange(String),
-
-        Accept(String),
-        AcceptCharset(String),
-        AcceptEncoding(String),
-        AcceptLanguage(String),
-
-        Authorization(String),
-        ProxyAuthorization(String),
-
-        From(String),
-        Referer(String),
-        UserAgent(String),
-
-        Custom(String, String),
-    }
-}
-
-pub mod response {
-    use std::fmt;
-
-    #[derive(Debug, PartialEq)]
-    pub enum Header {
-        Age(String),
-        CacheControl,
-        Expires,
-        Date,
-        Location,
-        RetryAfter,
-        Vary,
-        Warning,
-        Custom(String, String),
-    }
-
-    impl fmt::Display for Header {
-        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-            let header = match self {
-                Self::Age(s) => ("Age".to_string(), s),
-                Self::Custom(k, v) => (k.clone(), v),
-                _ => panic!("this header does not support formatting"),
-            };
-
-            write!(f, "{}: {}", header.0, header.1)
-        }
-    }
-}
-
-#[derive(Debug, PartialEq)]
-pub struct Headers {
-    pub headers: HashMap<String, String>,
-}
-
-impl fmt::Display for Headers {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        for header in &self.headers {
-            write!(f, "{}: {}\r\n", header.0, header.1)?;
-        }
-
-        Ok(())
-    }
-}
-
-impl Headers {
-    pub fn new() -> Headers {
-        Headers {
-            headers: HashMap::new(),
-        }
-    }
-}
-
 #[derive(Debug, PartialEq)]
 pub enum Version {
     OneDotOne,
@@ -233,6 +148,12 @@ pub struct Uri {
 }
 
 impl Uri {
+    pub fn new(path: &str) -> Uri {
+        Uri {
+            path: path.to_string(),
+        }
+    }
+
     fn parse(input: &str) -> Result<Self, Error> {
         Ok(Self {
             path: input.to_string(),
@@ -245,7 +166,7 @@ pub struct Request {
     pub method: Method,
     pub uri: Uri,
     pub version: Version,
-    pub headers: Vec<request::Header>,
+    pub headers: HashMap<String, String>,
     pub body: String,
 }
 
@@ -255,7 +176,7 @@ impl Request {
             method: Method::Get,
             uri: Uri::parse(uri).unwrap(),
             version: Version::OneDotOne,
-            headers: Vec::new(),
+            headers: HashMap::new(),
             body: "".to_string(),
         }
     }
@@ -272,9 +193,30 @@ impl Request {
         req
     }
 
-    pub fn body(mut self, body: String) -> Request {
-        self.body = body;
+    pub fn header(mut self, header: (&str, &str)) -> Request {
+        self.headers
+            .insert(header.0.to_string(), header.1.to_string());
         self
+    }
+
+    pub fn body(mut self, body: &str, mime: mime::Mime) -> Request {
+        self = self.header(("Content-Length", &body.len().to_string()));
+        self = self.header(("Content-Type", mime.essence_str()));
+        self.body = body.to_string();
+        self
+    }
+}
+
+// Enables custom formatting of Header HashMap
+struct HeadersDisplay<'a>(&'a HashMap<String, String>);
+
+impl<'a> fmt::Display for HeadersDisplay<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        for header in self.0 {
+            write!(f, "{}: {}\r\n", header.0, header.1)?;
+        }
+
+        Ok(())
     }
 }
 
@@ -282,7 +224,7 @@ impl Request {
 pub struct Response {
     pub version: Version,
     pub status: Status,
-    pub headers: Headers,
+    pub headers: HashMap<String, String>,
     pub body: String,
 }
 
@@ -291,7 +233,10 @@ impl fmt::Display for Response {
         write!(
             f,
             "{} {}\r\n{}\r\n{}",
-            self.version, self.status, self.headers, self.body
+            self.version,
+            self.status,
+            HeadersDisplay(&self.headers),
+            self.body
         )
     }
 }
@@ -301,20 +246,21 @@ impl Response {
         Response {
             version: Version::OneDotOne,
             status: status,
-            headers: Headers::new(),
+            headers: HashMap::new(),
             body: "".to_string(),
         }
     }
 
-    pub fn header(mut self, header: (&str, String)) -> Response {
-        self.headers.headers.insert(header.0.to_string(), header.1);
+    pub fn header(mut self, header: (&str, &str)) -> Response {
+        self.headers
+            .insert(header.0.to_string(), header.1.to_string());
         self
     }
 
-    pub fn body(mut self, body: String, mime: mime::Mime) -> Response {
-        self = self.header(("Content-Length", body.len().to_string()));
-        self = self.header(("Content-Type", mime.essence_str().to_string()));
-        self.body = body;
+    pub fn body(mut self, body: &str, mime: mime::Mime) -> Response {
+        self = self.header(("Content-Length", &body.len().to_string()));
+        self = self.header(("Content-Type", mime.essence_str()));
+        self.body = body.to_string();
         self
     }
 }
@@ -343,14 +289,13 @@ impl Request {
 
         let headers_str: Vec<&str> = lines.collect();
 
-        let mut headers = Vec::new();
+        let mut headers = HashMap::new();
 
         for line in headers_str {
             let mut split_header = line.split(':');
             let header_key = split_header.next().ok_or(Error::MalformedRequest)?; // no header key
             let header_value = split_header.next().ok_or(Error::MalformedRequest)?.trim(); // no header value
-            let header = parse_header(header_key, header_value)?;
-            headers.push(header);
+            headers.insert(header_key.to_string(), header_value.to_string());
         }
 
         Ok(Request {
@@ -363,50 +308,49 @@ impl Request {
     }
 }
 
-fn parse_header(key: &str, value: &str) -> Result<request::Header, Error> {
-    let value = value.to_string();
-    let header = match key {
-        "Host" => request::Header::Host(value),
-        "Accept-Language" => request::Header::AcceptLanguage(value),
-        "User-Agent" => request::Header::UserAgent(value),
-        _ => request::Header::Custom(key.to_string(), value),
-    };
-
-    Ok(header)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
-    use afl::fuzz;
+    extern crate test;
+    use test::Bencher;
+
+    fn create_dummy_request_string() -> &'static str {
+        "GET /hello.txt HTTP/1.1\r\n\
+        User-Agent: curl/7.16.3 libcurl/7.16.3 OpenSSL/0.9.7l zlib/1.2.3\r\n\
+        Host: www.example.com\r\n\
+        Accept-Language: en, mi\r\n\
+        \r\n\
+        This is the body \r\nof the request.\r\n"
+    }
 
     #[test]
     fn request_parsing() {
-        let http_req = "GET /hello.txt HTTP/1.1\r\n\
-                        User-Agent: curl/7.16.3 libcurl/7.16.3 OpenSSL/0.9.7l zlib/1.2.3\r\n\
-                        Host: www.example.com\r\n\
-                        Accept-Language: en, mi\r\n\
-                        \r\n\
-                        This is the body \r\nof the request.\r\n";
+        let http_req = create_dummy_request_string();
 
-        assert_eq!(
-            Request::parse(http_req),
-            Ok(Request {
-                method: Method::Get,
-                uri: Uri {
-                    path: "/hello.txt".to_string()
-                },
-                version: Version::OneDotOne,
-                headers: vec![
-                    request::Header::UserAgent(
-                        "curl/7.16.3 libcurl/7.16.3 OpenSSL/0.9.7l zlib/1.2.3".to_string()
-                    ),
-                    request::Header::Host("www.example.com".to_string()),
-                    request::Header::AcceptLanguage("en, mi".to_string()),
-                ],
-                body: "This is the body \r\nof the request.\r\n".to_string(),
-            })
+        let request = Request::parse(http_req).unwrap();
+
+        assert_eq!(request.method, Method::Get);
+        assert_eq!(request.uri, Uri::new("/hello.txt"));
+        assert_eq!(request.version, Version::OneDotOne);
+        let mut headers = HashMap::new();
+        headers.insert(
+            "User-Agent".to_string(),
+            "curl/7.16.3 libcurl/7.16.3 OpenSSL/0.9.7l zlib/1.2.3".to_string(),
         );
+        headers.insert("Host".to_string(), "www.example.com".to_string());
+        headers.insert("Accept-Language".to_string(), "en, mi".to_string());
+        assert_eq!(request.headers, headers);
+        assert_eq!(
+            request.body,
+            "This is the body \r\nof the request.\r\n".to_string()
+        );
+    }
+
+    #[bench]
+    fn request_parsing_bench(b: &mut Bencher) {
+        let http_req = create_dummy_request_string();
+
+        b.iter(|| Request::parse(http_req))
     }
 
     #[test]
@@ -427,16 +371,54 @@ mod tests {
     fn version_parsing() {
         assert_eq!(Version::parse("HTTP/1.1"), Ok(Version::OneDotOne));
 
-        assert_eq!(Version::parse("XYZ/1.0"), Err(Error::UnsupportedVersion),);
+        assert_eq!(Version::parse("XYZ/1.0"), Err(Error::UnsupportedVersion));
     }
 
-    // #[test]
-    // #[ignore]
-    // fn fuzzing() {
-    //     fuzz!(|data: &[u8]| {
-    //         if let Ok(s) = std::str::from_utf8(data) {
-    //             let _ = Request::parse(&s);
-    //         }
-    //     });
-    // }
+    #[test]
+    fn request_building() {
+        let get_req = Request::get("/test");
+        assert_eq!(get_req.method, Method::Get);
+        assert_eq!(get_req.uri.path, "/test");
+
+        let post_req = Request::post("/test");
+        assert_eq!(post_req.method, Method::Post);
+        assert_eq!(post_req.uri.path, "/test");
+
+        let post_req = post_req.body("Hello, world!", mime::TEXT_PLAIN);
+        assert_eq!(post_req.body, "Hello, world!".to_string());
+        assert_eq!(post_req.headers.get("Content-Length").unwrap(), "13");
+        assert_eq!(post_req.headers.get("Content-Type").unwrap(), "text/plain");
+    }
+
+    #[test]
+    fn response_building() {
+        let response = Response::new(Status::Ok);
+        assert_eq!(response.status, Status::Ok);
+
+        let response = response.body("Hello, world!", mime::TEXT_PLAIN);
+        assert_eq!(response.body, "Hello, world!".to_string());
+        assert_eq!(response.headers.get("Content-Length").unwrap(), "13");
+        assert_eq!(response.headers.get("Content-Type").unwrap(), "text/plain");
+
+        let response = response.header(("Hello", "World"));
+        assert_eq!(response.headers.get("Hello").unwrap(), "World");
+    }
+
+    #[test]
+    fn response_formatting() {
+        let response = Response::new(Status::Ok)
+            .body("Hello, world!", mime::TEXT_PLAIN)
+            .header(("Hello", "World!"));
+
+        let response_string = format!("{}", response);
+
+        // This is a workaround because when the header HashMap is serialized
+        // the headers don't always end up in the same order
+        // TODO: Unfortunately this does not catch all possible errors
+        assert!(response_string.starts_with("HTTP/1.1 200 OK\r\n"));
+        assert!(response_string.contains("Content-Length: 13\r\n"));
+        assert!(response_string.contains("Content-Type: text/plain\r\n"));
+        assert!(response_string.contains("Hello: World!\r\n"));
+        assert!(response_string.ends_with("\r\nHello, world!"));
+    }
 }

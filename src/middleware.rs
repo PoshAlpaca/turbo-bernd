@@ -1,6 +1,8 @@
 use crate::http;
 
 use mime;
+#[cfg(test)]
+use mockall::automock;
 use std::{fmt, fs::File, io::prelude::*, path::Path};
 
 #[derive(Debug, PartialEq)]
@@ -20,6 +22,7 @@ impl fmt::Display for Error {
     }
 }
 
+#[cfg_attr(test, automock)]
 pub trait Middleware: Sync {
     fn answer(&self, request: &http::Request) -> Result<http::Response, Error>;
 }
@@ -77,7 +80,7 @@ impl<'a> Middleware for FileMiddleware<'a> {
             };
         }
 
-        let response = http::Response::new(http::Status::Ok).body(buffer, mime::TEXT_HTML);
+        let response = http::Response::new(http::Status::Ok).body(&buffer, mime::TEXT_HTML);
 
         Ok(response)
     }

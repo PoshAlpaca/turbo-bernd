@@ -1,42 +1,16 @@
-use turbo_bernd::http;
-use turbo_bernd::middleware;
-use turbo_bernd::middleware::FileMiddleware;
-use turbo_bernd::middleware::Middleware;
+use turbo_bernd::http::{self, Request, Response};
+use turbo_bernd::middleware::{self, FileMiddleware, Middleware};
 
+use mime;
 use std::fs::File;
 use std::io::prelude::*;
-
-fn create_dummy_request(path: &str) -> http::Request {
-    http::Request {
-        method: http::Method::Get,
-        uri: http::Uri {
-            path: path.to_string(),
-        },
-        version: http::Version::OneDotOne,
-        headers: Vec::new(),
-        body: "".to_string(),
-    }
-}
-
-fn create_dummy_response(path: &str) -> http::Response {
-    let mut buffer = String::new();
-
-    let _ = File::open(path).unwrap().read_to_string(&mut buffer);
-
-    http::Response {
-        status: http::Status::Ok,
-        version: http::Version::OneDotOne,
-        headers: http::Headers::new(),
-        body: buffer,
-    }
-}
 
 #[test]
 fn answer_returns_response_with_directory_listing() {
     let file_middleware = FileMiddleware {
         file_directory: "tests/mock",
     };
-    let dummy_request = create_dummy_request("/");
+    let dummy_request = Request::get("/");
 
     let response = file_middleware.answer(&dummy_request).unwrap();
 
@@ -51,14 +25,18 @@ fn answer_returns_response_with_file() {
     let file_middleware = FileMiddleware {
         file_directory: "tests/mock",
     };
-    let dummy_request = create_dummy_request("/test_one/test.html");
+    let dummy_request = Request::get("/test_one/test.html");
 
     let response = file_middleware.answer(&dummy_request);
 
-    assert_eq!(
-        response.unwrap().body,
-        create_dummy_response("tests/mock/test_one/test.html").body
-    );
+    let mut buffer = String::new();
+    let _ = File::open("tests/mock/test_one/test.html")
+        .unwrap()
+        .read_to_string(&mut buffer);
+
+    let dummy_response = Response::new(http::Status::Ok).body(&buffer, mime::TEXT_HTML);
+
+    assert_eq!(response.unwrap().body, dummy_response.body);
 }
 
 #[test]
@@ -66,8 +44,8 @@ fn answer_returns_404() {
     let file_middleware = FileMiddleware {
         file_directory: "tests/mock",
     };
-    let dummy_request_file = create_dummy_request("/test_one/wrong.html");
-    let dummy_request_dir = create_dummy_request("/test_eight");
+    let dummy_request_file = Request::get("/test_one/wrong.html");
+    let dummy_request_dir = Request::get("/test_eight");
 
     let response_file = file_middleware.answer(&dummy_request_file);
     let response_dir = file_middleware.answer(&dummy_request_dir);

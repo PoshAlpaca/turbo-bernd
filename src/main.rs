@@ -22,7 +22,7 @@ fn setup_router() -> Router {
     let mut router = Router::new();
 
     router.register("/hello", http::Method::Get, |_| {
-        http::Response::new(http::Status::Ok).body("Hello, world!".to_string(), mime::TEXT_PLAIN)
+        http::Response::new(http::Status::Ok).body("Hello, world!", mime::TEXT_PLAIN)
     });
 
     router
