@@ -14,6 +14,7 @@ use turbo_bernd::{
     Application, Config,
 };
 
+#[ignore]
 #[test]
 fn e2e() {
     let mut router = Router::new();

@@ -4,7 +4,7 @@ use crossbeam::scope;
 use log::{debug, error, info};
 use std::{
     env,
-    io::{self, prelude::*},
+    io::{self, Read, Write},
     net::{TcpListener, TcpStream},
     str,
     sync::mpsc::{self, Receiver, TryRecvError},
@@ -14,6 +14,7 @@ use std::{
 pub mod http;
 pub mod middleware;
 pub mod routing;
+pub mod websocket;
 
 use http::{Response, ResponseClass, Status};
 use middleware::Middleware;
@@ -71,6 +72,8 @@ impl Application {
 
                     scope(|s| {
                         s.spawn(move |_| {
+                            let client = Client::new(stream, Protocol::Http);
+                            client.handle();
                             self.handle_client(stream);
                         });
                     })
@@ -152,6 +155,46 @@ impl Application {
         }
 
         let _ = stream.write(format!("{}", response).as_bytes());
+
+        if response.status == Status::SwitchingProtocols {
+            self.protocol = Protocol::WebSocket;
+        }
+    }
+}
+
+enum Protocol {
+    Http,
+    WebSocket,
+}
+
+struct Client {
+    stream: TcpStream,
+    protocol: Protocol,
+}
+
+impl Client {
+    pub fn new(stream: TcpStream, protocol: Protocol) -> Client {
+        Client { stream, protocol }
+    }
+
+    pub fn handle(&self) {
+        let mut buffer = [0; 1024];
+        loop {
+            let _ = self.stream.read(&mut buffer[..]).unwrap();
+
+            match self.protocol {
+                Protocol::Http => {}
+                Protocol::WebSocket => {
+                    let mut buffer = [0; 2];
+                    let _ = self.stream.read(&mut buffer[..]).unwrap();
+                    let bit_vec = websocket::BitVec::from_bytes(&buffer);
+
+                    let frame = websocket::Frame::new(&[], &buffer);
+
+                    let _ = self.stream.write(&frame.as_bytes());
+                }
+            }
+        }
     }
 }
 

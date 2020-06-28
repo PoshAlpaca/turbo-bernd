@@ -1,5 +1,6 @@
 use crate::http;
 use crate::middleware;
+use crate::websocket::WebSocket;
 use middleware::Middleware;
 use std::collections::HashMap;
 
@@ -24,6 +25,10 @@ impl Router {
             })
             .or_insert(HashMap::new());
         route.insert(method, f);
+    }
+
+    pub fn register_ws(&mut self, path: &str, f: fn(WebSocket) -> ()) {
+        self.register(path, http::Method::Get, |req| WebSocket::try_init(&req));
     }
 
     pub fn dispatch(&self, req: &http::Request) -> Result<http::Response, middleware::Error> {

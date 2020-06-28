@@ -63,30 +63,48 @@ impl fmt::Display for Version {
     }
 }
 
+impl Default for Version {
+    fn default() -> Self {
+        Version::OneDotOne
+    }
+}
+
 #[derive(Debug, PartialEq)]
 pub enum Status {
+    SwitchingProtocols,
     Ok,
     BadRequest,
     Unauthorized,
     Forbidden,
     NotFound,
     MethodNotAllowed,
+    ImATeapot,
+    UpgradeRequired,
     VersionNotSupported,
 }
 
 impl fmt::Display for Status {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let status = match self {
+            Self::SwitchingProtocols => "101 Switching Protocols",
             Self::Ok => "200 OK",
             Self::BadRequest => "400 Bad Request",
             Self::Unauthorized => "401 Unauthorized",
             Self::Forbidden => "402 Forbidden",
             Self::NotFound => "404 Not Found",
             Self::MethodNotAllowed => "405 Method Not Allowed",
+            Self::ImATeapot => "418 I'm a teapot",
+            Self::UpgradeRequired => "426 Upgrade Required",
             Self::VersionNotSupported => "505 HTTP Version Not Supported",
         };
 
         write!(f, "{}", status)
+    }
+}
+
+impl Default for Status {
+    fn default() -> Self {
+        Status::ImATeapot
     }
 }
 
@@ -101,12 +119,15 @@ pub enum ResponseClass {
 impl ResponseClass {
     fn new(status: &Status) -> ResponseClass {
         match status {
+            Status::SwitchingProtocols => Self::Informational,
             Status::Ok => Self::Successful,
             Status::BadRequest => Self::ClientError,
             Status::Unauthorized => Self::ClientError,
             Status::Forbidden => Self::ClientError,
             Status::NotFound => Self::ClientError,
             Status::MethodNotAllowed => Self::ClientError,
+            Status::ImATeapot => Self::ClientError,
+            Status::UpgradeRequired => Self::ClientError,
             Status::VersionNotSupported => Self::ServerError,
         }
     }
@@ -220,7 +241,7 @@ impl<'a> fmt::Display for HeadersDisplay<'a> {
     }
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Default)]
 pub struct Response {
     pub version: Version,
     pub status: Status,

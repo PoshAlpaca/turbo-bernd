@@ -20,6 +20,7 @@ fn answer_returns_response_with_directory_listing() {
     }
 }
 
+// TODO: Mock file system, then move this into middleware.rs as unit test
 #[test]
 fn answer_returns_response_with_file() {
     let file_middleware = FileMiddleware {
